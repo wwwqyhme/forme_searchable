@@ -1,6 +1,6 @@
 name: forme_searchable
-description: image picker for Forme , support drag & drop
-version: 1.0.1
+description: searchable widget for Forme , support overlay|dialog|bottomSheet
+version: 1.0.0
 homepage: https://github.com/wwwqyhme/forme_searchable
 
 environment:
