@@ -10,7 +10,7 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  forme: ^3.5.1+1
+  forme: ^3.5.1+2
 
 dev_dependencies:
   flutter_test:

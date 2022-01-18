@@ -27,7 +27,7 @@ class _PageResult<T extends Object> extends FormeSearchablePageResult<T> {
   ) : super(result.datas, result.totalPage);
 }
 
-class FormeSearchableDropdown<T extends Object> extends FormeField<List<T>> {
+class FormeSearchable<T extends Object> extends FormeField<List<T>> {
   final FormeQuery<T> query;
   final FormeSearchableContentWidgetBuilder<T> contentWidgetBuilder;
   final bool multiSelect;
@@ -37,7 +37,9 @@ class FormeSearchableDropdown<T extends Object> extends FormeField<List<T>> {
   final FormeBottomSheetConfiguration? bottomSheetConfiguration;
   final FormeDialogConfiguration? dialogConfiguration;
   final InputDecoration? decoration;
-  FormeSearchableDropdown._({
+  final int? limit;
+  final ValueChanged<BuildContext>? onLimitExceeded;
+  FormeSearchable._({
     required this.type,
     Key? key,
     required String name,
@@ -64,6 +66,8 @@ class FormeSearchableDropdown<T extends Object> extends FormeField<List<T>> {
     this.bottomSheetConfiguration,
     this.dialogConfiguration,
     this.decoration,
+    this.limit,
+    this.onLimitExceeded,
   }) : super(
             key: key,
             registrable: registrable,
@@ -83,8 +87,8 @@ class FormeSearchableDropdown<T extends Object> extends FormeField<List<T>> {
             asyncValidator: asyncValidator,
             readOnly: readOnly,
             builder: (genericState) {
-              final _FormeSearchableDropdownState<T> state =
-                  genericState as _FormeSearchableDropdownState<T>;
+              final _FormeSearchableState<T> state =
+                  genericState as _FormeSearchableState<T>;
 
               final Widget field = ValueListenableBuilder<bool>(
                   valueListenable: state.controller.focusListenable,
@@ -132,9 +136,9 @@ class FormeSearchableDropdown<T extends Object> extends FormeField<List<T>> {
               return field;
             });
   @override
-  FormeFieldState<List<T>> createState() => _FormeSearchableDropdownState<T>();
+  FormeFieldState<List<T>> createState() => _FormeSearchableState<T>();
 
-  factory FormeSearchableDropdown.overlay({
+  factory FormeSearchable.overlay({
     required String name,
     required FormeQuery<T> query,
     FormeSearchableContentWidgetBuilder<T>? contentWidgetBuilder,
@@ -158,8 +162,12 @@ class FormeSearchableDropdown<T extends Object> extends FormeField<List<T>> {
     FormeFieldValidationChanged<List<T>>? onValidationChanged,
     FormeFieldInitialed<List<T>>? onInitialed,
     InputDecoration? decoration,
+    int? limit,
+    ValueChanged<BuildContext>? onLimitExceeded,
   }) {
-    return FormeSearchableDropdown._(
+    return FormeSearchable._(
+      limit: limit,
+      onLimitExceeded: onLimitExceeded,
       decoration: decoration,
       enabled: enabled,
       onInitialed: onInitialed,
@@ -210,7 +218,7 @@ class FormeSearchableDropdown<T extends Object> extends FormeField<List<T>> {
     );
   }
 
-  factory FormeSearchableDropdown.bottomSheet({
+  factory FormeSearchable.bottomSheet({
     required String name,
     required FormeQuery<T> query,
     FormeSearchableContentWidgetBuilder<T>? contentWidgetBuilder,
@@ -235,8 +243,12 @@ class FormeSearchableDropdown<T extends Object> extends FormeField<List<T>> {
     FormeFieldValidationChanged<List<T>>? onValidationChanged,
     FormeFieldInitialed<List<T>>? onInitialed,
     InputDecoration? decoration,
+    int? limit,
+    ValueChanged<BuildContext>? onLimitExceeded,
   }) {
-    return FormeSearchableDropdown._(
+    return FormeSearchable._(
+      limit: limit,
+      onLimitExceeded: onLimitExceeded,
       decoration: decoration,
       enabled: enabled,
       onInitialed: onInitialed,
@@ -282,7 +294,7 @@ class FormeSearchableDropdown<T extends Object> extends FormeField<List<T>> {
     );
   }
 
-  factory FormeSearchableDropdown.dialog({
+  factory FormeSearchable.dialog({
     required String name,
     required FormeQuery<T> query,
     FormeSearchableContentWidgetBuilder<T>? contentWidgetBuilder,
@@ -308,8 +320,12 @@ class FormeSearchableDropdown<T extends Object> extends FormeField<List<T>> {
     FormeFieldValidationChanged<List<T>>? onValidationChanged,
     FormeFieldInitialed<List<T>>? onInitialed,
     InputDecoration? decoration,
+    int? limit,
+    ValueChanged<BuildContext>? onLimitExceeded,
   }) {
-    return FormeSearchableDropdown._(
+    return FormeSearchable._(
+      limit: limit,
+      onLimitExceeded: onLimitExceeded,
       decoration: decoration,
       enabled: enabled,
       onInitialed: onInitialed,
@@ -356,8 +372,7 @@ class FormeSearchableDropdown<T extends Object> extends FormeField<List<T>> {
   }
 }
 
-class _FormeSearchableDropdownState<T extends Object>
-    extends FormeFieldState<List<T>>
+class _FormeSearchableState<T extends Object> extends FormeFieldState<List<T>>
     with FormeAsyncOperationHelper<_PageResult<T>> {
   final FormeKey _formKey = FormeKey();
   final LayerLink _layerLink = LayerLink();
@@ -366,8 +381,7 @@ class _FormeSearchableDropdownState<T extends Object>
       FormeMountedValueNotifier(null, this);
 
   @override
-  FormeSearchableDropdown<T> get widget =>
-      super.widget as FormeSearchableDropdown<T>;
+  FormeSearchable<T> get widget => super.widget as FormeSearchable<T>;
 
   late final ValueNotifier<_PageResult<T>?> _result =
       FormeMountedValueNotifier(null, this);
@@ -381,6 +395,7 @@ class _FormeSearchableDropdownState<T extends Object>
     final List<T> copy = List.of(value);
     if (copy.remove(data)) {
       didChange(copy);
+      requestFocusOnUserInteraction();
     }
   }
 
@@ -388,6 +403,10 @@ class _FormeSearchableDropdownState<T extends Object>
     if (widget.multiSelect) {
       final List<T> copy = List.of(value);
       if (!copy.remove(data)) {
+        if (widget.limit != null && copy.length >= widget.limit!) {
+          widget.onLimitExceeded?.call(context);
+          return;
+        }
         copy.add(data);
       }
       didChange(copy);
@@ -401,6 +420,10 @@ class _FormeSearchableDropdownState<T extends Object>
     super.updateFieldValueInDidUpdateWidget(oldWidget);
     if (!widget.multiSelect && value.length > 1) {
       setValue([value.first]);
+    }
+    if (widget.limit != null && widget.limit! < value.length) {
+      final List<T> items = List.of(value);
+      setValue(items.sublist(0, widget.limit));
     }
   }
 
@@ -470,6 +493,7 @@ class _FormeSearchableDropdownState<T extends Object>
   }
 
   void _showDialog() {
+    focusNode.requestFocus();
     if ((widget.type == FormeSearchablePopupType.bottomSheet ||
             widget.type == FormeSearchablePopupType.dialog) &&
         (_formKey.currentState != null || _dialog != null)) {
@@ -565,7 +589,7 @@ class _FormeSearchableDropdownState<T extends Object>
 }
 
 class FormeSearchableController<T extends Object> extends InheritedWidget {
-  final _FormeSearchableDropdownState<T> _state;
+  final _FormeSearchableState<T> _state;
 
   const FormeSearchableController._(this._state, Widget child)
       : super(child: child);
