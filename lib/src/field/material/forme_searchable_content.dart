@@ -11,7 +11,6 @@ typedef FormeSearchFieldsBuilder = Widget Function(
 
 class FormeSearchableContent<T extends Object> extends StatefulWidget {
   final Alignment alignment;
-  final ShapeBorder? shape;
   final FormeSearchablePageResult<T>? result;
   final FormeKey formKey;
   final ValueChanged<int> onPageChanged;
@@ -23,10 +22,21 @@ class FormeSearchableContent<T extends Object> extends StatefulWidget {
   final WidgetBuilder? errorBuilder;
   final Widget Function(BuildContext context, T data, bool isSelected)?
       selectableItemBuilder;
+
+  final MaterialType type;
+  final double elevation;
+  final Color? color;
+  final Color? shadowColor;
+  final TextStyle? textStyle;
+  final BorderRadiusGeometry? borderRadius;
+  final ShapeBorder? shape;
+  final bool borderOnForeground;
+  final Clip clipBehavior;
+  final Duration animationDuration;
+
   const FormeSearchableContent({
     Key? key,
     this.alignment = Alignment.topCenter,
-    this.shape,
     required this.result,
     required this.formKey,
     required this.onPageChanged,
@@ -37,6 +47,16 @@ class FormeSearchableContent<T extends Object> extends StatefulWidget {
     this.processingBuilder,
     this.errorBuilder,
     this.selectableItemBuilder,
+    this.shape,
+    this.type = MaterialType.canvas,
+    this.elevation = 0.0,
+    this.color,
+    this.shadowColor,
+    this.textStyle,
+    this.borderRadius,
+    this.borderOnForeground = true,
+    this.clipBehavior = Clip.none,
+    this.animationDuration = kThemeChangeDuration,
   }) : super(key: key);
 
   @override
@@ -45,12 +65,12 @@ class FormeSearchableContent<T extends Object> extends StatefulWidget {
 
 class _FormeSearchableContentState<T extends Object>
     extends State<FormeSearchableContent<T>> {
-  late FormeSearchableController<T> _searchableController;
+  late FormeSearchableData<T> _searchableController;
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    _searchableController = FormeSearchableController.of<T>(context);
+    _searchableController = FormeSearchableData.of<T>(context);
   }
 
   void _query() {
@@ -102,7 +122,7 @@ class _FormeSearchableContentState<T extends Object>
     final bool paginationEnable = widget.result != null &&
         widget.result!.totalPage > 1 &&
         widget.paginationConfiguration.enable;
-    return Column(
+    final Column column = Column(
       mainAxisSize: MainAxisSize.min,
       children: [
         Row(
@@ -136,6 +156,7 @@ class _FormeSearchableContentState<T extends Object>
             widget.result != null)
           Flexible(
             child: ListView.builder(
+              shrinkWrap: true,
               itemCount: widget.result!.datas.length,
               itemBuilder: (context, index) {
                 final T data = _sortedDatas[index];
@@ -154,6 +175,19 @@ class _FormeSearchableContentState<T extends Object>
             ),
           ),
       ],
+    );
+    return Material(
+      type: widget.type,
+      color: widget.color,
+      shadowColor: widget.shadowColor,
+      textStyle: widget.textStyle,
+      borderRadius: widget.borderRadius,
+      shape: widget.shape,
+      borderOnForeground: widget.borderOnForeground,
+      clipBehavior: widget.clipBehavior,
+      animationDuration: widget.animationDuration,
+      elevation: widget.elevation,
+      child: column,
     );
   }
 }

@@ -139,6 +139,7 @@ class _FormeSearchablePaginationBarState
                 valueListenable: _pageNotifier,
                 builder: (context, page, child) {
                   return TextFormField(
+                    textInputAction: TextInputAction.go,
                     focusNode: _focusNode,
                     controller: _controller,
                     onFieldSubmitted: (value) => _submitInputPage(),
