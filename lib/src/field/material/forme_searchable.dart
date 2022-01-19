@@ -2,35 +2,23 @@ import 'package:flutter/material.dart';
 import 'package:forme/forme.dart';
 
 import 'dialog_configuration.dart';
+import 'forme_default_searchable_content.dart';
 import 'forme_page_result.dart';
 import 'forme_searchable_content.dart';
 import 'popup_type.dart';
 
-typedef FormeQuery<T extends Object> = Future<FormeSearchablePageResult<T>>
-    Function(Map<String, dynamic> condition, int currentPage);
 typedef FormeSearchableSelectedItemsBuilder<T extends Object> = Widget Function(
     BuildContext context, List<T> selected, ValueChanged<T>? onDelete);
+typedef FormeQuery<T extends Object> = Future<FormeSearchablePageResult<T>>
+    Function(Map<String, dynamic> condition, int page);
 
-typedef FormeSearchableContentWidgetBuilder<T extends Object> = Widget Function(
-  FormeKey formKey,
-  ValueChanged<int> query,
-  FormeSearchablePageResult<T>? result,
-  FormeAsyncOperationState? state,
-  int? currentPage,
-);
-
-class _PageResult<T extends Object> extends FormeSearchablePageResult<T> {
-  final int currentPage;
-  _PageResult(
-    FormeSearchablePageResult<T> result,
-    this.currentPage,
-  ) : super(result.datas, result.totalPage);
-}
+typedef FormeSearchableContentBuilder<T extends Object>
+    = FormeSearchableContent<T> Function(BuildContext context);
 
 class FormeSearchable<T extends Object> extends FormeField<List<T>> {
-  final FormeQuery<T> query;
-  final FormeSearchableContentWidgetBuilder<T> contentWidgetBuilder;
+  final FormeSearchableContentBuilder<T> contentBuilder;
   final bool multiSelect;
+  final FormeQuery<T> query;
   final FormeSearchableSelectedItemsBuilder<T>? selectedItemsBuilder;
   final FormeSearchablePopupType type;
   final Widget Function(BuildContext context, Widget content)? contentWrapper;
@@ -43,6 +31,7 @@ class FormeSearchable<T extends Object> extends FormeField<List<T>> {
     required this.type,
     Key? key,
     required String name,
+    required this.query,
     List<T>? initialValue,
     bool registrable = true,
     bool enabled = true,
@@ -59,8 +48,7 @@ class FormeSearchable<T extends Object> extends FormeField<List<T>> {
     FormeFieldValidationChanged<List<T>>? onValidationChanged,
     FormeFieldInitialed<List<T>>? onInitialed,
     FormeFieldDecorator<List<T>>? decorator,
-    required this.query,
-    required this.contentWidgetBuilder,
+    required this.contentBuilder,
     this.multiSelect = true,
     this.selectedItemsBuilder,
     this.contentWrapper,
@@ -99,7 +87,6 @@ class FormeSearchable<T extends Object> extends FormeField<List<T>> {
               }
 
               return state._buildFieldViewWidget(decorator);
-              ;
             });
   @override
   FormeFieldState<List<T>> createState() => _FormeSearchableState<T>();
@@ -107,7 +94,7 @@ class FormeSearchable<T extends Object> extends FormeField<List<T>> {
   factory FormeSearchable.overlay({
     required String name,
     required FormeQuery<T> query,
-    FormeSearchableContentWidgetBuilder<T>? contentWidgetBuilder,
+    FormeSearchableContentBuilder<T>? contentBuilder,
     double Function(BuildContext context)? maxHeightProvider,
     bool multiSelect = true,
     FormeSearchableSelectedItemsBuilder<T>? selectedItemsBuilder,
@@ -135,6 +122,7 @@ class FormeSearchable<T extends Object> extends FormeField<List<T>> {
         selectableItemBuilder,
   }) {
     return FormeSearchable._(
+      query: query,
       decorator: decorator,
       limit: limit,
       onLimitExceeded: onLimitExceeded,
@@ -159,15 +147,10 @@ class FormeSearchable<T extends Object> extends FormeField<List<T>> {
       selectedItemsBuilder: selectedItemsBuilder,
       multiSelect: multiSelect,
       type: FormeSearchablePopupType.overlay,
-      query: query,
-      contentWidgetBuilder: contentWidgetBuilder ??
-          (formKey, query, result, state, currentPage) {
-            return FormeSearchableContent(
-              formKey: formKey,
-              onPageChanged: query,
-              result: result,
-              state: state,
-              currentPage: currentPage,
+      contentBuilder: contentBuilder ??
+          (context) {
+            return FormeDefaultSearchableContent(
+              elevation: 4,
               selectableItemBuilder: selectableItemBuilder,
               processingBuilder: (context) {
                 return const Padding(
@@ -192,7 +175,7 @@ class FormeSearchable<T extends Object> extends FormeField<List<T>> {
   factory FormeSearchable.bottomSheet({
     required String name,
     required FormeQuery<T> query,
-    FormeSearchableContentWidgetBuilder<T>? contentWidgetBuilder,
+    FormeSearchableContentBuilder<T>? contentBuilder,
     double? Function(BuildContext context)? heightProvider,
     double? Function(BuildContext context)? maxHeightProvider,
     FormeBottomSheetConfiguration? bottomSheetConfiguration,
@@ -222,6 +205,7 @@ class FormeSearchable<T extends Object> extends FormeField<List<T>> {
         selectableItemBuilder,
   }) {
     return FormeSearchable._(
+      query: query,
       decorator: decorator,
       limit: limit,
       onLimitExceeded: onLimitExceeded,
@@ -246,15 +230,9 @@ class FormeSearchable<T extends Object> extends FormeField<List<T>> {
       selectedItemsBuilder: selectedItemsBuilder,
       multiSelect: multiSelect,
       type: FormeSearchablePopupType.bottomSheet,
-      query: query,
-      contentWidgetBuilder: contentWidgetBuilder ??
-          (formKey, query, result, state, currentPage) {
-            return FormeSearchableContent(
-              formKey: formKey,
-              onPageChanged: query,
-              result: result,
-              state: state,
-              currentPage: currentPage,
+      contentBuilder: contentBuilder ??
+          (context) {
+            return FormeDefaultSearchableContent(
               selectableItemBuilder: selectableItemBuilder,
             );
           },
@@ -290,7 +268,7 @@ class FormeSearchable<T extends Object> extends FormeField<List<T>> {
   factory FormeSearchable.dialog({
     required String name,
     required FormeQuery<T> query,
-    FormeSearchableContentWidgetBuilder<T>? contentWidgetBuilder,
+    FormeSearchableContentBuilder<T>? contentBuilder,
     Size? Function(BuildContext context)? sizeProvider,
     FormeDialogConfiguration? dialogConfiguration,
     bool multiSelect = true,
@@ -319,6 +297,7 @@ class FormeSearchable<T extends Object> extends FormeField<List<T>> {
         selectableItemBuilder,
   }) {
     return FormeSearchable._(
+      query: query,
       decorator: decorator,
       limit: limit,
       onLimitExceeded: onLimitExceeded,
@@ -343,21 +322,15 @@ class FormeSearchable<T extends Object> extends FormeField<List<T>> {
       selectedItemsBuilder: selectedItemsBuilder,
       multiSelect: multiSelect,
       type: FormeSearchablePopupType.dialog,
-      query: query,
-      contentWidgetBuilder: contentWidgetBuilder ??
-          (formKey, query, result, state, currentPage) {
-            return FormeSearchableContent(
-              formKey: formKey,
-              onPageChanged: query,
-              result: result,
-              state: state,
-              currentPage: currentPage,
+      contentBuilder: contentBuilder ??
+          (context) {
+            return FormeDefaultSearchableContent(
               selectableItemBuilder: selectableItemBuilder,
             );
           },
       dialogConfiguration: dialogConfiguration,
       contentWrapper: (context, content) {
-        MediaQueryData mediaQuery = MediaQuery.of(context);
+        final MediaQueryData mediaQuery = MediaQuery.of(context);
         final Size size = sizeProvider?.call(context) ?? mediaQuery.size;
         double bottomPadding;
         if (size == mediaQuery.size) {
@@ -392,7 +365,7 @@ class FormeSearchable<T extends Object> extends FormeField<List<T>> {
   factory FormeSearchable.builder({
     required String name,
     required FormeQuery<T> query,
-    required FormeSearchableContentWidgetBuilder<T> contentWidgetBuilder,
+    required FormeSearchableContentBuilder<T> contentBuilder,
     Widget Function(BuildContext context, Widget content)? contentWrapper,
     bool multiSelect = true,
     FormeSearchableSelectedItemsBuilder<T>? selectedItemsBuilder,
@@ -421,6 +394,7 @@ class FormeSearchable<T extends Object> extends FormeField<List<T>> {
     FormeBottomSheetConfiguration? bottomSheetConfiguration,
   }) {
     return FormeSearchable._(
+      query: query,
       dialogConfiguration: dialogConfiguration,
       bottomSheetConfiguration: bottomSheetConfiguration,
       decorator: decorator,
@@ -447,8 +421,7 @@ class FormeSearchable<T extends Object> extends FormeField<List<T>> {
       selectedItemsBuilder: selectedItemsBuilder,
       multiSelect: multiSelect,
       type: type,
-      query: query,
-      contentWidgetBuilder: contentWidgetBuilder,
+      contentBuilder: contentBuilder,
       contentWrapper: contentWrapper,
     );
   }
@@ -456,7 +429,6 @@ class FormeSearchable<T extends Object> extends FormeField<List<T>> {
 
 class _FormeSearchableState<T extends Object> extends FormeFieldState<List<T>>
     with FormeAsyncOperationHelper<_PageResult<T>> {
-  final FormeKey _formKey = FormeKey();
   final LayerLink _layerLink = LayerLink();
 
   late final ValueNotifier<double?> _widthNotifier =
@@ -465,14 +437,17 @@ class _FormeSearchableState<T extends Object> extends FormeFieldState<List<T>>
   @override
   FormeSearchable<T> get widget => super.widget as FormeSearchable<T>;
 
-  late final ValueNotifier<_PageResult<T>?> _result =
-      FormeMountedValueNotifier(null, this);
-  late final ValueNotifier<FormeAsyncOperationState?> _stateNotifier =
-      FormeMountedValueNotifier(null, this);
-
   OverlayEntry? _overlayEntry;
   Future? _dialog;
   bool get _needClose => _overlayEntry != null || _dialog != null;
+
+  FormeSearchableObserver<T>? _observer;
+
+  void _query(Map<String, dynamic> condition, int page) {
+    perform(widget
+        .query(condition, page)
+        .then((value) => _PageResult(value, page)));
+  }
 
   @override
   void afterInitiation() {
@@ -506,7 +481,7 @@ class _FormeSearchableState<T extends Object> extends FormeFieldState<List<T>>
             readOnly ? null : _delete,
           );
 
-    final FormeFieldDecorator<List<T>>? finalDecorator = decorator ??
+    final FormeFieldDecorator<List<T>> finalDecorator = decorator ??
         FormeInputDecoratorBuilder(
             decoration: widget.decoration ??
                 const InputDecoration(
@@ -516,9 +491,7 @@ class _FormeSearchableState<T extends Object> extends FormeFieldState<List<T>>
               return value.isNotEmpty;
             });
 
-    field = finalDecorator == null
-        ? field
-        : finalDecorator.build(controller, field);
+    field = finalDecorator.build(controller, field);
 
     field = Focus(
       focusNode: focusNode,
@@ -580,6 +553,12 @@ class _FormeSearchableState<T extends Object> extends FormeFieldState<List<T>>
     });
   }
 
+  @override
+  void onValueChanged(List<T> value) {
+    super.onValueChanged(value);
+    _observer?.onSelectedChanged(value);
+  }
+
   void _close() {
     if (!_needClose) {
       return;
@@ -592,7 +571,7 @@ class _FormeSearchableState<T extends Object> extends FormeFieldState<List<T>>
   }
 
   void _onClosed() {
-    cancelAsyncOperation();
+    _observer = null;
     _dialog = null;
     _overlayEntry = null;
   }
@@ -604,25 +583,11 @@ class _FormeSearchableState<T extends Object> extends FormeFieldState<List<T>>
       Navigator.pop(context);
     }
     _widthNotifier.dispose();
-    _stateNotifier.dispose();
-    _result.dispose();
     super.dispose();
   }
 
   Widget get _content {
-    final Widget content = ValueListenableBuilder3<
-            _PageResult<T>?,
-            FormeAsyncOperationState?,
-            List<T>>(_result, _stateNotifier, controller.valueListenable,
-        builder: (context, result, state, value, child) {
-      return widget.contentWidgetBuilder(
-        _formKey,
-        _query,
-        result,
-        state,
-        result?.currentPage,
-      );
-    });
+    final Widget content = widget.contentBuilder(context);
 
     return _MediaQueryHolder(
       child: FormeSearchableData<T>._(this, Builder(builder: (context) {
@@ -640,15 +605,6 @@ class _FormeSearchableState<T extends Object> extends FormeFieldState<List<T>>
     if (_needClose) {
       return;
     }
-
-    if ((widget.type == FormeSearchablePopupType.bottomSheet ||
-            widget.type == FormeSearchablePopupType.dialog) &&
-        _formKey.currentState != null) {
-      return;
-    }
-
-    _result.value = null;
-    _stateNotifier.value = null;
 
     if (widget.type == FormeSearchablePopupType.bottomSheet) {
       _dialog = showModalBottomSheet<void>(
@@ -710,30 +666,28 @@ class _FormeSearchableState<T extends Object> extends FormeFieldState<List<T>>
     }
   }
 
-  void _query(int page) {
-    perform(widget.query(_formKey.data, page).then((value) {
-      return _PageResult(value, page);
-    }));
+  @override
+  FormeFieldController<List<T>> createFormeFieldController() {
+    return FormeSearchableController._(
+        this, super.createFormeFieldController());
   }
 
   @override
   void onAsyncStateChanged(FormeAsyncOperationState state, Object? key) {
-    if (mounted) {
-      _stateNotifier.value = state;
+    if (state != FormeAsyncOperationState.success) {
+      _observer?.onStateChanged(state, null, null);
     }
   }
 
   @override
   void onSuccess(_PageResult<T> result, Object? key) {
-    if (mounted) {
-      _result.value = result;
-    }
+    _observer?.onStateChanged(
+        FormeAsyncOperationState.success, result, result.currentPage);
   }
 
   @override
-  FormeFieldController<List<T>> createFormeFieldController() {
-    return FormeSearchableController._(
-        this, super.createFormeFieldController());
+  void onError(Object error, StackTrace stackTrace) {
+    _observer?.onError(error, stackTrace);
   }
 }
 
@@ -768,6 +722,13 @@ class FormeSearchableData<T extends Object> extends InheritedWidget {
 
   /// select|unselect data
   void toggle(T data) => _state._toggle(data);
+
+  /// perform a query
+  void query(Map<String, dynamic> condition, int page) =>
+      _state._query(condition, page);
+
+  void setObserver(FormeSearchableObserver<T> observer) =>
+      _state._observer = observer;
 
   @override
   bool updateShouldNotify(covariant InheritedWidget oldWidget) {
@@ -813,4 +774,19 @@ class _MediaQueryHolderState extends State<_MediaQueryHolder>
     super.dispose();
     WidgetsBinding.instance!.removeObserver(this);
   }
+}
+
+class _PageResult<T extends Object> extends FormeSearchablePageResult<T> {
+  final int currentPage;
+  _PageResult(
+    FormeSearchablePageResult<T> result,
+    this.currentPage,
+  ) : super(result.datas, result.totalPage);
+}
+
+mixin FormeSearchableObserver<T extends Object> {
+  void onStateChanged(FormeAsyncOperationState state,
+      FormeSearchablePageResult<T>? result, int? currentPage);
+  void onError(Object error, StackTrace stackTrace) {}
+  void onSelectedChanged(List<T> value);
 }
