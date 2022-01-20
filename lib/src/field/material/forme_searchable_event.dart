@@ -26,6 +26,12 @@ class FormeSearchableEvent<T extends Object> {
   factory FormeSearchableEvent.success(FormeSearchablePageResult<T> result,
       int currentPage, Map<String, dynamic> condition) {
     return FormeSearchableEvent._(
-        null, null, true, result, currentPage, condition);
+        null, null, false, result, currentPage, condition);
   }
+}
+
+class FormeSearchableSelectedEvent<T extends Object> {
+  final List<T> selected;
+
+  FormeSearchableSelectedEvent(this.selected);
 }
