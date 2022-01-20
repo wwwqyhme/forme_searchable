@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:forme/forme.dart';
 
 class FormePaginationConfiguration {
@@ -139,10 +140,14 @@ class _FormeSearchablePaginationBarState
                 valueListenable: _pageNotifier,
                 builder: (context, page, child) {
                   return TextFormField(
+                    keyboardType: TextInputType.number,
                     textInputAction: TextInputAction.go,
                     focusNode: _focusNode,
                     controller: _controller,
                     onFieldSubmitted: (value) => _submitInputPage(),
+                    inputFormatters: <TextInputFormatter>[
+                      _TextInputFormatter(widget.totalPage),
+                    ],
                     decoration: InputDecoration(
                       border: InputBorder.none,
                       suffixIcon: const SizedBox.shrink(),
@@ -160,5 +165,23 @@ class _FormeSearchablePaginationBarState
         _next(),
       ],
     );
+  }
+}
+
+class _TextInputFormatter extends TextInputFormatter {
+  final int max;
+
+  _TextInputFormatter(this.max);
+  @override
+  TextEditingValue formatEditUpdate(
+      TextEditingValue oldValue, TextEditingValue newValue) {
+    if (newValue.text.isEmpty) {
+      return newValue;
+    }
+    final int? current = int.tryParse(newValue.text);
+    if (current == null || current < 1 || current > max) {
+      return oldValue;
+    }
+    return newValue;
   }
 }

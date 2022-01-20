@@ -234,6 +234,15 @@ class FormeSearchable<T extends Object> extends FormeField<List<T>> {
           (context) {
             return FormeDefaultSearchableContent(
               selectableItemBuilder: selectableItemBuilder,
+              processingBuilder:
+                  (heightProvider == null && maxHeightProvider != null)
+                      ? (context) {
+                          return const Padding(
+                            padding: EdgeInsets.all(20),
+                            child: CircularProgressIndicator(),
+                          );
+                        }
+                      : null,
             );
           },
       bottomSheetConfiguration: bottomSheetConfiguration,
@@ -615,7 +624,7 @@ class _FormeSearchableState<T extends Object> extends FormeFieldState<List<T>>
           constraints: widget.bottomSheetConfiguration?.constraints,
           barrierColor: widget.bottomSheetConfiguration?.barrierColor,
           isScrollControlled:
-              widget.bottomSheetConfiguration?.isScrollControlled ?? false,
+              widget.bottomSheetConfiguration?.isScrollControlled ?? true,
           isDismissible: widget.bottomSheetConfiguration?.isDismissible ?? true,
           transitionAnimationController:
               widget.bottomSheetConfiguration?.transitionAnimationController,
