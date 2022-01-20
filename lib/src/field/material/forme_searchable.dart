@@ -1,10 +1,13 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:forme/forme.dart';
 
 import 'dialog_configuration.dart';
-import 'forme_default_searchable_content.dart';
+import 'forme_searchable_default_content.dart';
 import 'forme_page_result.dart';
 import 'forme_searchable_content.dart';
+import 'forme_searchable_event.dart';
 import 'popup_type.dart';
 
 typedef FormeSearchableSelectedItemsBuilder<T extends Object> = Widget Function(
@@ -13,7 +16,10 @@ typedef FormeQuery<T extends Object> = Future<FormeSearchablePageResult<T>>
     Function(Map<String, dynamic> condition, int page);
 
 typedef FormeSearchableContentBuilder<T extends Object>
-    = FormeSearchableContent<T> Function(BuildContext context);
+    = FormeSearchableContent<T> Function(
+  BuildContext context,
+  Stream<FormeSearchableEvent<T>> stream,
+);
 
 class FormeSearchable<T extends Object> extends FormeField<List<T>> {
   final FormeSearchableContentBuilder<T> contentBuilder;
@@ -149,13 +155,18 @@ class FormeSearchable<T extends Object> extends FormeField<List<T>> {
       type: FormeSearchablePopupType.overlay,
       contentBuilder: contentBuilder ??
           (context) {
-            return FormeDefaultSearchableContent(
+            return FormeSearchableDefaultContent(
               elevation: 4,
-              selectableItemBuilder: selectableItemBuilder,
-              processingBuilder: (context) {
-                return const Padding(
-                  padding: EdgeInsets.all(20),
-                  child: CircularProgressIndicator(),
+              eventBuilder: (context, stream) {
+                return DefaultEventBuilder(
+                  stream: stream,
+                  selectableItemBuilder: selectableItemBuilder,
+                  processingBuilder: (context) {
+                    return const Padding(
+                      padding: EdgeInsets.all(20),
+                      child: CircularProgressIndicator(),
+                    );
+                  },
                 );
               },
             );
@@ -232,17 +243,22 @@ class FormeSearchable<T extends Object> extends FormeField<List<T>> {
       type: FormeSearchablePopupType.bottomSheet,
       contentBuilder: contentBuilder ??
           (context) {
-            return FormeDefaultSearchableContent(
-              selectableItemBuilder: selectableItemBuilder,
-              processingBuilder:
-                  (heightProvider == null && maxHeightProvider != null)
-                      ? (context) {
-                          return const Padding(
-                            padding: EdgeInsets.all(20),
-                            child: CircularProgressIndicator(),
-                          );
-                        }
-                      : null,
+            return FormeSearchableDefaultContent(
+              eventBuilder: (context, stream) {
+                return DefaultEventBuilder(
+                  stream: stream,
+                  selectableItemBuilder: selectableItemBuilder,
+                  processingBuilder:
+                      (heightProvider == null && maxHeightProvider != null)
+                          ? (context) {
+                              return const Padding(
+                                padding: EdgeInsets.all(20),
+                                child: CircularProgressIndicator(),
+                              );
+                            }
+                          : null,
+                );
+              },
             );
           },
       bottomSheetConfiguration: bottomSheetConfiguration,
@@ -333,8 +349,13 @@ class FormeSearchable<T extends Object> extends FormeField<List<T>> {
       type: FormeSearchablePopupType.dialog,
       contentBuilder: contentBuilder ??
           (context) {
-            return FormeDefaultSearchableContent(
-              selectableItemBuilder: selectableItemBuilder,
+            return FormeSearchableDefaultContent(
+              eventBuilder: (context, stream) {
+                return DefaultEventBuilder(
+                  stream: stream,
+                  selectableItemBuilder: selectableItemBuilder,
+                );
+              },
             );
           },
       dialogConfiguration: dialogConfiguration,
@@ -442,6 +463,10 @@ class _FormeSearchableState<T extends Object> extends FormeFieldState<List<T>>
 
   late final ValueNotifier<double?> _widthNotifier =
       FormeMountedValueNotifier(null, this);
+
+  final StreamController<FormeSearchableEvent<T>> _eventNotifier =
+      StreamController<FormeSearchableEvent<T>>.broadcast();
+
   @override
   FormeSearchable<T> get widget => super.widget as FormeSearchable<T>;
 
@@ -454,7 +479,7 @@ class _FormeSearchableState<T extends Object> extends FormeFieldState<List<T>>
   void _query(Map<String, dynamic> condition, int page) {
     perform(widget
         .query(condition, page)
-        .then((value) => _PageResult(value, page)));
+        .then((value) => _PageResult(value, page, condition)));
   }
 
   @override
@@ -591,11 +616,15 @@ class _FormeSearchableState<T extends Object> extends FormeFieldState<List<T>>
       Navigator.pop(context);
     }
     _widthNotifier.dispose();
+    _eventNotifier.close();
     super.dispose();
   }
 
   Widget get _content {
-    final Widget content = widget.contentBuilder(context);
+    final Widget content = widget.contentBuilder(
+      context,
+      _eventNotifier.stream,
+    );
 
     return _MediaQueryHolder(
       child: FormeSearchableData<T>._(this, Builder(builder: (context) {
@@ -685,15 +714,18 @@ class _FormeSearchableState<T extends Object> extends FormeFieldState<List<T>>
 
   @override
   void onAsyncStateChanged(FormeAsyncOperationState state, Object? key) {
-    if (state != FormeAsyncOperationState.success) {
-      _observer?.onStateChanged(state, null, null);
+    if (state == FormeAsyncOperationState.processing) {
+      _observer?.onProcessing();
     }
   }
 
   @override
   void onSuccess(_PageResult<T> result, Object? key) {
-    _observer?.onStateChanged(
-        FormeAsyncOperationState.success, result, result.currentPage);
+    _observer?.onSuccess(
+      result,
+      result.currentPage,
+      result.condition,
+    );
   }
 
   @override
@@ -789,15 +821,18 @@ class _MediaQueryHolderState extends State<_MediaQueryHolder>
 
 class _PageResult<T extends Object> extends FormeSearchablePageResult<T> {
   final int currentPage;
+  final Map<String, dynamic> condition;
   _PageResult(
     FormeSearchablePageResult<T> result,
     this.currentPage,
+    this.condition,
   ) : super(result.datas, result.totalPage);
 }
 
 mixin FormeSearchableObserver<T extends Object> {
-  void onStateChanged(FormeAsyncOperationState state,
-      FormeSearchablePageResult<T>? result, int? currentPage);
+  void onSuccess(FormeSearchablePageResult<T> result, int currentPage,
+      Map<String, dynamic> condition);
+  void onProcessing() {}
   void onError(Object error, StackTrace stackTrace) {}
   void onSelectedChanged(List<T> value);
 }
