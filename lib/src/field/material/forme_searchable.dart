@@ -442,7 +442,6 @@ class _FormeSearchableState<T extends Object> extends FormeFieldState<List<T>>
 
   late final ValueNotifier<double?> _widthNotifier =
       FormeMountedValueNotifier(null, this);
-
   @override
   FormeSearchable<T> get widget => super.widget as FormeSearchable<T>;
 
@@ -505,7 +504,7 @@ class _FormeSearchableState<T extends Object> extends FormeFieldState<List<T>>
     field = Focus(
       focusNode: focusNode,
       child: GestureDetector(
-        onTap: readOnly ? null : _show,
+        onTap: readOnly ? null : _toggleContent,
         child: field,
       ),
     );
@@ -608,13 +607,16 @@ class _FormeSearchableState<T extends Object> extends FormeFieldState<List<T>>
     );
   }
 
-  void _show() {
-    focusNode.requestFocus();
-
+  void _toggleContent() {
     if (_needClose) {
+      _close();
       return;
     }
+    _show();
+  }
 
+  void _show() {
+    focusNode.requestFocus();
     if (widget.type == FormeSearchablePopupType.bottomSheet) {
       _dialog = showModalBottomSheet<void>(
           backgroundColor: widget.bottomSheetConfiguration?.backgroundColor,
