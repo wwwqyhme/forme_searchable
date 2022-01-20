@@ -5,7 +5,7 @@ import 'package:forme/forme.dart';
 
 import 'dialog_configuration.dart';
 import 'forme_page_result.dart';
-import 'forme_searchable_default_observer.dart';
+import 'forme_searchable_default_content.dart';
 import 'forme_searchable_observer.dart';
 import 'popup_type.dart';
 
