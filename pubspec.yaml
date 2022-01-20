@@ -1,6 +1,6 @@
 name: forme_searchable
-description: searchable widget for Forme , support overlay|dialog|bottomSheet
-version: 1.0.0
+description: searchable widget for Forme , support overlay|dialog|bottomSheet and pagination
+version: 1.0.0-beta1
 homepage: https://github.com/wwwqyhme/forme_searchable
 
 environment:
