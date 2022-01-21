@@ -20,24 +20,21 @@ import 'package:forme_searchable/forme_searchable.dart';
 import 'package:infinite_scroll_pagination/infinite_scroll_pagination.dart';
 
 class FormeSearchableContent2<T extends Object>
-    extends FormeSearchableContent<T> {
+    extends FormeSearchableObserverHelper<T> {
   const FormeSearchableContent2({
     Key? key,
-  }) : super(key: key);
+  }) : super(
+          key: key,
+        );
 
   @override
-  FormeSearchableContentState<T> createState() =>
+  _FormeSearchableContent2State<T> createState() =>
       _FormeSearchableContent2State<T>();
 }
 
 class _FormeSearchableContent2State<T extends Object>
-    extends FormeSearchableContentState<T> {
+    extends FormeSearchableObserverHelperState<T> {
   late final PagingController<int, T> _pagingController;
-
-  void _query(int page) {
-    final Map<String, dynamic> condition = {'query': '1'};
-    searchable.query(condition, page);
-  }
 
   @override
   void initState() {
@@ -45,7 +42,7 @@ class _FormeSearchableContent2State<T extends Object>
       firstPageKey: 1,
     );
     _pagingController.addPageRequestListener((pageKey) {
-      _query(pageKey);
+      query({'query': '1'}, pageKey);
     });
     super.initState();
   }
@@ -73,11 +70,11 @@ class _FormeSearchableContent2State<T extends Object>
           builderDelegate: PagedChildBuilderDelegate<T>(
             itemBuilder: (context, data, index) => InkWell(
               child: ListTile(
-                leading: searchable.contains(data) ? Text('checked') : null,
+                leading: isSelected(data) ? const Text('checked') : null,
                 title: Text('$data'),
               ),
               onTap: () {
-                searchable.toggle(data);
+                toggle(data);
               },
             ),
           ),
@@ -87,29 +84,26 @@ class _FormeSearchableContent2State<T extends Object>
   }
 
   @override
-  void onStateChanged(FormeAsyncOperationState state,
-      FormeSearchablePageResult<T>? result, int? currentPage) {
-    if (mounted) {
-      if (state == FormeAsyncOperationState.success) {
-        if (currentPage == result!.totalPage) {
-          _pagingController.appendLastPage(result.datas);
-        } else {
-          _pagingController.appendPage(result.datas, currentPage! + 1);
-        }
-      }
-    }
+  void onErrorIfMounted(Object error, StackTrace stackTrace) {
+    _pagingController.error = error;
   }
 
   @override
-  void onError(Object error, StackTrace stackTrace) {
-    if (mounted) {
-      _pagingController.error = error;
-    }
-  }
+  void onProcessingIfMounted() {}
 
   @override
-  void onSelectedChanged(List<T> value) {
+  void onSelectedIfMounted(List<T> selected) {
     setState(() {});
+  }
+
+  @override
+  void onSuccessIfMounted(FormeSearchablePageResult<T> result, int currentPage,
+      Map<String, dynamic> condition) {
+    if (currentPage == result.totalPage) {
+      _pagingController.appendLastPage(result.datas);
+    } else {
+      _pagingController.appendPage(result.datas, currentPage + 1);
+    }
   }
 }
 ```
@@ -122,7 +116,7 @@ FormeSearchable<String>.overlay(
     query: _defaultQuery,
     maxHeightProvider: (context) => 300,
     contentBuilder: (context) {
-        return const FormeSearchableContent2();
+        return const FormeSearchableContent2<String>();
     },
 )
 ```
