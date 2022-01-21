@@ -148,7 +148,8 @@ class _FormeSearchableDefaultContentState<T extends Object>
                 onTap: () {
                   toggle(data);
                 },
-                child: _defaultSelectableItemBuilder(
+                child: (widget.selectableItemBuilder ??
+                    _defaultSelectableItemBuilder)(
                   context,
                   data,
                   isSelected(data),
