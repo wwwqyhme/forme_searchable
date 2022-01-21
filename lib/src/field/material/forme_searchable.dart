@@ -202,6 +202,8 @@ class FormeSearchable<T extends Object> extends FormeField<List<T>> {
     FormeFieldDecorator<List<T>>? decorator,
     Widget Function(BuildContext context, T data, bool isSelected)?
         selectableItemBuilder,
+    Curve? curve = Curves.linear,
+    Duration animationDuration = const Duration(milliseconds: 200),
   }) {
     return FormeSearchable._(
       query: query,
@@ -264,9 +266,17 @@ class FormeSearchable<T extends Object> extends FormeField<List<T>> {
             child: content,
           );
         }
-        return Padding(
+        _content = Padding(
           padding:
               EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+          child: _content,
+        );
+        if (curve == null) {
+          return _content;
+        }
+        return AnimatedSize(
+          curve: curve,
+          duration: animationDuration,
           child: _content,
         );
       },
