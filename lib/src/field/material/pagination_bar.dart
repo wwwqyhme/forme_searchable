@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:forme/forme.dart';
 
 class FormePaginationConfiguration {
   final Widget? prev;
@@ -20,16 +19,16 @@ class FormePaginationConfiguration {
 
 class FormeSearchablePaginationBar extends StatefulWidget {
   final int totalPage;
-  final int currentPage;
   final ValueChanged<int> onPageChanged;
   final FormePaginationConfiguration configuration;
+  final FormeSearchablePaginationController controller;
 
   const FormeSearchablePaginationBar({
     Key? key,
     required this.totalPage,
-    required this.currentPage,
     required this.onPageChanged,
     required this.configuration,
+    required this.controller,
   }) : super(key: key);
 
   @override
@@ -39,23 +38,22 @@ class FormeSearchablePaginationBar extends StatefulWidget {
 class _FormeSearchablePaginationBarState
     extends State<FormeSearchablePaginationBar> {
   final FocusNode _focusNode = FocusNode();
-  late final ValueNotifier<int> _pageNotifier;
   late final TextEditingController _controller;
 
   @override
   void initState() {
     super.initState();
-    _pageNotifier = FormeMountedValueNotifier(widget.currentPage, this);
-    _controller = TextEditingController(text: '${widget.currentPage}');
-    _pageNotifier.addListener(() {
-      if (mounted) {
-        _controller.text = '$_currentPage';
-        widget.onPageChanged(_currentPage);
-      }
-    });
+    _controller = TextEditingController(text: '${widget.controller.value}');
     _focusNode.addListener(() {
       if (!_focusNode.hasFocus) {
         _controller.text = '$_currentPage';
+      }
+    });
+    widget.controller.addListener(() {
+      if (mounted) {
+        setState(() {
+          _controller.text = '$_currentPage';
+        });
       }
     });
   }
@@ -63,7 +61,6 @@ class _FormeSearchablePaginationBarState
   @override
   void dispose() {
     _controller.dispose();
-    _pageNotifier.dispose();
     _focusNode.dispose();
     super.dispose();
   }
@@ -77,55 +74,50 @@ class _FormeSearchablePaginationBarState
       if (page > widget.totalPage || page < 1) {
         _controller.text = '$_currentPage';
       } else {
-        _pageNotifier.value = page;
+        widget.controller.value = page;
+        widget.onPageChanged(_currentPage);
       }
     }
   }
 
-  int get _currentPage => _pageNotifier.value;
+  int get _currentPage => widget.controller.value;
 
   Widget _prev() {
-    return ValueListenableBuilder<int>(
-        valueListenable: _pageNotifier,
-        builder: (context, page, child) {
-          final VoidCallback? onTap = page == 1
-              ? null
-              : () {
-                  _pageNotifier.value = page - 1;
-                };
-          if (widget.configuration.prev == null) {
-            return IconButton(
-                onPressed: onTap,
-                icon: Icon(
-                    widget.configuration.prevIcon ?? Icons.arrow_left_rounded));
-          }
-          return InkWell(
-            onTap: onTap,
-            child: widget.configuration.prev,
-          );
-        });
+    final VoidCallback? onTap = _currentPage == 1
+        ? null
+        : () {
+            widget.controller.value = _currentPage - 1;
+            widget.onPageChanged(_currentPage);
+          };
+    if (widget.configuration.prev == null) {
+      return IconButton(
+          onPressed: onTap,
+          icon:
+              Icon(widget.configuration.prevIcon ?? Icons.arrow_left_rounded));
+    }
+    return InkWell(
+      onTap: onTap,
+      child: widget.configuration.prev,
+    );
   }
 
   Widget _next() {
-    return ValueListenableBuilder<int>(
-        valueListenable: _pageNotifier,
-        builder: (context, page, child) {
-          final VoidCallback? onTap = page == widget.totalPage
-              ? null
-              : () {
-                  _pageNotifier.value = page + 1;
-                };
-          if (widget.configuration.next == null) {
-            return IconButton(
-                onPressed: onTap,
-                icon: Icon(widget.configuration.nextIcon ??
-                    Icons.arrow_right_rounded));
-          }
-          return InkWell(
-            onTap: onTap,
-            child: widget.configuration.prev,
-          );
-        });
+    final VoidCallback? onTap = _currentPage == widget.totalPage
+        ? null
+        : () {
+            widget.controller.value = _currentPage + 1;
+            widget.onPageChanged(_currentPage);
+          };
+    if (widget.configuration.next == null) {
+      return IconButton(
+          onPressed: onTap,
+          icon:
+              Icon(widget.configuration.nextIcon ?? Icons.arrow_right_rounded));
+    }
+    return InkWell(
+      onTap: onTap,
+      child: widget.configuration.prev,
+    );
   }
 
   @override
@@ -136,28 +128,23 @@ class _FormeSearchablePaginationBarState
         Expanded(
           child: Center(
             child: IntrinsicWidth(
-              child: ValueListenableBuilder<int>(
-                valueListenable: _pageNotifier,
-                builder: (context, page, child) {
-                  return TextFormField(
-                    keyboardType: TextInputType.number,
-                    textInputAction: TextInputAction.go,
-                    focusNode: _focusNode,
-                    controller: _controller,
-                    onFieldSubmitted: (value) => _submitInputPage(),
-                    inputFormatters: <TextInputFormatter>[
-                      _TextInputFormatter(widget.totalPage),
-                    ],
-                    decoration: InputDecoration(
-                      border: InputBorder.none,
-                      suffixIcon: const SizedBox.shrink(),
-                      suffixIconConstraints: const BoxConstraints.tightFor(),
-                      suffixText: '/${widget.totalPage}',
-                      suffixStyle: Theme.of(context).textTheme.subtitle1,
-                    ),
-                    textAlign: TextAlign.right,
-                  );
-                },
+              child: TextFormField(
+                keyboardType: TextInputType.number,
+                textInputAction: TextInputAction.go,
+                focusNode: _focusNode,
+                controller: _controller,
+                onFieldSubmitted: (value) => _submitInputPage(),
+                inputFormatters: <TextInputFormatter>[
+                  _TextInputFormatter(widget.totalPage),
+                ],
+                decoration: InputDecoration(
+                  border: InputBorder.none,
+                  suffixIcon: const SizedBox.shrink(),
+                  suffixIconConstraints: const BoxConstraints.tightFor(),
+                  suffixText: '/${widget.totalPage}',
+                  suffixStyle: Theme.of(context).textTheme.subtitle1,
+                ),
+                textAlign: TextAlign.right,
               ),
             ),
           ),
@@ -184,4 +171,8 @@ class _TextInputFormatter extends TextInputFormatter {
     }
     return newValue;
   }
+}
+
+class FormeSearchablePaginationController extends ValueNotifier<int> {
+  FormeSearchablePaginationController(int value) : super(value);
 }

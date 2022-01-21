@@ -55,6 +55,8 @@ class FormeSearchableDefaultContent<T extends Object>
 class _FormeSearchableDefaultContentState<T extends Object>
     extends FormeSearchableObserverHelperState<T> {
   final FormeKey _formKey = FormeKey();
+  final FormeSearchablePaginationController _controller =
+      FormeSearchablePaginationController(1);
 
   @override
   FormeSearchableDefaultContent<T> get widget =>
@@ -64,12 +66,10 @@ class _FormeSearchableDefaultContentState<T extends Object>
     return SingleTextSearchField(formKey: key, onSubmitted: onSubmitted);
   }
 
-  @protected
-  Map<String, dynamic> get condition {
-    if (_formKey.initialized) {
-      return _formKey.data;
-    }
-    return <String, dynamic>{};
+  void _query([int page = 1]) {
+    final Map<String, dynamic> condition =
+        _formKey.initialized ? _formKey.data : <String, dynamic>{};
+    super.query(condition, page);
   }
 
   /// build default pagination bar and close button
@@ -83,8 +83,8 @@ class _FormeSearchableDefaultContentState<T extends Object>
           Expanded(
             child: FormeSearchablePaginationBar(
               totalPage: result!.totalPage,
-              currentPage: currentPage,
-              onPageChanged: (int page) => query(condition, page),
+              controller: _controller,
+              onPageChanged: _query,
               configuration: widget.paginationConfiguration,
             ),
           ),
@@ -133,9 +133,7 @@ class _FormeSearchableDefaultContentState<T extends Object>
       children: [
         _header(),
         (widget.searchFieldsBuilder ?? _defaultSearchFieldsBuilder)
-            .call(_formKey, () {
-          query(condition, 1);
-        }),
+            .call(_formKey, _query),
         if (state == null) const SizedBox.shrink(),
         if (state == FormeAsyncOperationState.processing)
           (widget.processingBuilder ?? _defaultProcessingBuilder)(context),
@@ -195,6 +193,8 @@ class _FormeSearchableDefaultContentState<T extends Object>
   @override
   void onSuccessIfMounted(FormeSearchablePageResult<T> result, int currentPage,
       Map<String, dynamic> condition) {
-    setState(() {});
+    setState(() {
+      _controller.value = currentPage;
+    });
   }
 }

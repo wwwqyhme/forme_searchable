@@ -20,7 +20,7 @@ class FormeSearchable<T extends Object> extends FormeField<List<T>> {
   final FormeQuery<T> query;
   final FormeSearchableSelectedItemsBuilder<T>? selectedItemsBuilder;
   final FormeSearchablePopupType type;
-  final Widget Function(BuildContext context, Widget content)? contentWrapper;
+  final Widget Function(BuildContext context, Widget content)? contentDecorator;
   final FormeBottomSheetConfiguration? bottomSheetConfiguration;
   final FormeDialogConfiguration? dialogConfiguration;
   final InputDecoration? decoration;
@@ -50,7 +50,7 @@ class FormeSearchable<T extends Object> extends FormeField<List<T>> {
     required this.contentBuilder,
     this.multiSelect = true,
     this.selectedItemsBuilder,
-    this.contentWrapper,
+    this.contentDecorator,
     this.bottomSheetConfiguration,
     this.dialogConfiguration,
     this.decoration,
@@ -148,7 +148,7 @@ class FormeSearchable<T extends Object> extends FormeField<List<T>> {
       type: FormeSearchablePopupType.overlay,
       contentBuilder: contentBuilder ??
           (context) {
-            return FormeSearchableDefaultContent(
+            return FormeSearchableDefaultContent<T>(
               elevation: 4,
               selectableItemBuilder: selectableItemBuilder,
               processingBuilder: (context) {
@@ -159,7 +159,7 @@ class FormeSearchable<T extends Object> extends FormeField<List<T>> {
               },
             );
           },
-      contentWrapper: (context, content) {
+      contentDecorator: (context, content) {
         if (maxHeightProvider == null) {
           return content;
         }
@@ -231,7 +231,7 @@ class FormeSearchable<T extends Object> extends FormeField<List<T>> {
       type: FormeSearchablePopupType.bottomSheet,
       contentBuilder: contentBuilder ??
           (context) {
-            return FormeSearchableDefaultContent(
+            return FormeSearchableDefaultContent<T>(
               selectableItemBuilder: selectableItemBuilder,
               processingBuilder:
                   (heightProvider == null && maxHeightProvider != null)
@@ -245,7 +245,7 @@ class FormeSearchable<T extends Object> extends FormeField<List<T>> {
             );
           },
       bottomSheetConfiguration: bottomSheetConfiguration,
-      contentWrapper: (context, content) {
+      contentDecorator: (context, content) {
         Widget _content;
         if (heightProvider == null) {
           if (maxHeightProvider != null) {
@@ -332,12 +332,12 @@ class FormeSearchable<T extends Object> extends FormeField<List<T>> {
       type: FormeSearchablePopupType.dialog,
       contentBuilder: contentBuilder ??
           (context) {
-            return FormeSearchableDefaultContent(
+            return FormeSearchableDefaultContent<T>(
               selectableItemBuilder: selectableItemBuilder,
             );
           },
       dialogConfiguration: dialogConfiguration,
-      contentWrapper: (context, content) {
+      contentDecorator: (context, content) {
         final MediaQueryData mediaQuery = MediaQuery.of(context);
         final Size size = sizeProvider?.call(context) ?? mediaQuery.size;
         double bottomPadding;
@@ -374,7 +374,7 @@ class FormeSearchable<T extends Object> extends FormeField<List<T>> {
     required String name,
     required FormeQuery<T> query,
     required WidgetBuilder contentBuilder,
-    Widget Function(BuildContext context, Widget content)? contentWrapper,
+    Widget Function(BuildContext context, Widget content)? contentDecorator,
     bool multiSelect = true,
     FormeSearchableSelectedItemsBuilder<T>? selectedItemsBuilder,
     Key? key,
@@ -430,7 +430,7 @@ class FormeSearchable<T extends Object> extends FormeField<List<T>> {
       multiSelect: multiSelect,
       type: type,
       contentBuilder: contentBuilder,
-      contentWrapper: contentWrapper,
+      contentDecorator: contentDecorator,
     );
   }
 }
@@ -604,8 +604,8 @@ class _FormeSearchableState<T extends Object> extends FormeFieldState<List<T>>
 
     return _MediaQueryHolder(
       child: FormeSearchableData<T>._(this, Builder(builder: (context) {
-        if (widget.contentWrapper != null) {
-          return widget.contentWrapper!(context, content);
+        if (widget.contentDecorator != null) {
+          return widget.contentDecorator!(context, content);
         }
         return content;
       })),
