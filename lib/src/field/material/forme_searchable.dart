@@ -508,13 +508,10 @@ class _FormeSearchableState<T extends Object> extends FormeFieldState<List<T>>
       ),
     );
 
-    if (widget.type == FormeSearchablePopupType.overlay) {
-      return CompositedTransformTarget(
-        link: _layerLink,
-        child: field,
-      );
-    }
-    return field;
+    return CompositedTransformTarget(
+      link: _layerLink,
+      child: field,
+    );
   }
 
   void _delete(T data) {
