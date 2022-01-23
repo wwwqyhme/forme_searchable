@@ -77,14 +77,6 @@ class FormeSearchable<T extends Object> extends FormeField<List<T>> {
             builder: (genericState) {
               final _FormeSearchableState<T> state =
                   genericState as _FormeSearchableState<T>;
-
-              if (type == FormeSearchablePopupType.overlay) {
-                return LayoutBuilder(builder: (context, constraints) {
-                  state._onSizeChange(context);
-                  return state._buildFieldViewWidget(decorator);
-                });
-              }
-
               return state._buildFieldViewWidget(decorator);
             });
   @override
@@ -449,9 +441,6 @@ class _FormeSearchableState<T extends Object> extends FormeFieldState<List<T>>
     with FormeAsyncOperationHelper<_PageResult<T>> {
   final LayerLink _layerLink = LayerLink();
 
-  late final ValueNotifier<double?> _widthNotifier =
-      FormeMountedValueNotifier(null, this);
-
   FormeSearchableObserver<T>? _observer;
 
   @override
@@ -564,16 +553,6 @@ class _FormeSearchableState<T extends Object> extends FormeFieldState<List<T>>
     }
   }
 
-  void _onSizeChange(BuildContext context) {
-    WidgetsBinding.instance!.addPostFrameCallback((timeStamp) {
-      _widthNotifier.value = double.parse(
-          (context.findRenderObject()! as RenderBox)
-              .size
-              .width
-              .toStringAsFixed(2));
-    });
-  }
-
   @override
   void onValueChanged(List<T> value) {
     super.onValueChanged(value);
@@ -603,7 +582,6 @@ class _FormeSearchableState<T extends Object> extends FormeFieldState<List<T>>
     if (_dialog != null) {
       Navigator.pop(context);
     }
-    _widthNotifier.dispose();
     super.dispose();
   }
 
@@ -672,14 +650,13 @@ class _FormeSearchableState<T extends Object> extends FormeFieldState<List<T>>
           showWhenUnlinked: false,
           targetAnchor: Alignment.bottomLeft,
           link: _layerLink,
-          child: ValueListenableBuilder<double?>(
-            valueListenable: _widthNotifier,
-            builder: (context, value, child) {
+          child: LayoutBuilder(
+            builder: (context, c) {
               return Align(
                 alignment: Alignment.topLeft,
                 child: ConstrainedBox(
                   constraints: BoxConstraints(
-                    maxWidth: value ?? double.infinity,
+                    maxWidth: _layerLink.leaderSize?.width ?? double.infinity,
                   ),
                   child: _content,
                 ),
