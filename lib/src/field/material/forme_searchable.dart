@@ -7,7 +7,7 @@ import 'dialog_configuration.dart';
 import 'forme_page_result.dart';
 import 'forme_searchable_default_content.dart';
 import 'forme_searchable_observer.dart';
-import 'popup_type.dart';
+import 'forme_searchable_popup.dart';
 
 typedef FormeSearchableSelectedItemsBuilder<T extends Object> = Widget Function(
     BuildContext context, List<T> selected, ValueChanged<T>? onDelete);
@@ -19,15 +19,13 @@ class FormeSearchable<T extends Object> extends FormeField<List<T>> {
   final bool multiSelect;
   final FormeQuery<T> query;
   final FormeSearchableSelectedItemsBuilder<T>? selectedItemsBuilder;
-  final FormeSearchablePopupType type;
   final Widget Function(BuildContext context, Widget content)? contentDecorator;
-  final FormeBottomSheetConfiguration? bottomSheetConfiguration;
-  final FormeDialogConfiguration? dialogConfiguration;
   final InputDecoration? decoration;
   final int? limit;
   final ValueChanged<BuildContext>? onLimitExceeded;
+  final FormeSearchablePopup popup;
   FormeSearchable._({
-    required this.type,
+    required this.popup,
     Key? key,
     required String name,
     required this.query,
@@ -51,8 +49,6 @@ class FormeSearchable<T extends Object> extends FormeField<List<T>> {
     this.multiSelect = true,
     this.selectedItemsBuilder,
     this.contentDecorator,
-    this.bottomSheetConfiguration,
-    this.dialogConfiguration,
     this.decoration,
     this.limit,
     this.onLimitExceeded,
@@ -113,6 +109,7 @@ class FormeSearchable<T extends Object> extends FormeField<List<T>> {
         selectableItemBuilder,
   }) {
     return FormeSearchable._(
+      popup: FormeSearchableOverlayPopup(),
       query: query,
       decorator: decorator,
       limit: limit,
@@ -137,7 +134,6 @@ class FormeSearchable<T extends Object> extends FormeField<List<T>> {
       initialValue: initialValue,
       selectedItemsBuilder: selectedItemsBuilder,
       multiSelect: multiSelect,
-      type: FormeSearchablePopupType.overlay,
       contentBuilder: contentBuilder ??
           (context) {
             return FormeSearchableDefaultContent<T>(
@@ -196,8 +192,11 @@ class FormeSearchable<T extends Object> extends FormeField<List<T>> {
         selectableItemBuilder,
     Curve? curve = Curves.linear,
     Duration animationDuration = const Duration(milliseconds: 200),
+    bool resizeToAvoidBottomInset = true,
   }) {
     return FormeSearchable._(
+      popup: FormeSearchableBottomSheetPopup(
+          configuration: bottomSheetConfiguration),
       query: query,
       decorator: decorator,
       limit: limit,
@@ -222,7 +221,6 @@ class FormeSearchable<T extends Object> extends FormeField<List<T>> {
       initialValue: initialValue,
       selectedItemsBuilder: selectedItemsBuilder,
       multiSelect: multiSelect,
-      type: FormeSearchablePopupType.bottomSheet,
       contentBuilder: contentBuilder ??
           (context) {
             return FormeSearchableDefaultContent<T>(
@@ -238,7 +236,6 @@ class FormeSearchable<T extends Object> extends FormeField<List<T>> {
                       : null,
             );
           },
-      bottomSheetConfiguration: bottomSheetConfiguration,
       contentDecorator: (context, content) {
         Widget _content;
         if (heightProvider == null) {
@@ -258,11 +255,13 @@ class FormeSearchable<T extends Object> extends FormeField<List<T>> {
             child: content,
           );
         }
-        _content = Padding(
-          padding:
-              EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
-          child: _content,
-        );
+        if (resizeToAvoidBottomInset) {
+          _content = Padding(
+            padding: EdgeInsets.only(
+                bottom: MediaQuery.of(context).viewInsets.bottom),
+            child: _content,
+          );
+        }
         if (curve == null) {
           return _content;
         }
@@ -305,8 +304,10 @@ class FormeSearchable<T extends Object> extends FormeField<List<T>> {
     FormeFieldDecorator<List<T>>? decorator,
     Widget Function(BuildContext context, T data, bool isSelected)?
         selectableItemBuilder,
+    bool resizeToAvoidBottomInset = true,
   }) {
     return FormeSearchable._(
+      popup: FormeSearchableDialogPopup(configuration: dialogConfiguration),
       query: query,
       decorator: decorator,
       limit: limit,
@@ -331,108 +332,49 @@ class FormeSearchable<T extends Object> extends FormeField<List<T>> {
       initialValue: initialValue,
       selectedItemsBuilder: selectedItemsBuilder,
       multiSelect: multiSelect,
-      type: FormeSearchablePopupType.dialog,
       contentBuilder: contentBuilder ??
           (context) {
             return FormeSearchableDefaultContent<T>(
               selectableItemBuilder: selectableItemBuilder,
             );
           },
-      dialogConfiguration: dialogConfiguration,
       contentDecorator: (context, content) {
+        Widget child;
+
         final MediaQueryData mediaQuery = MediaQuery.of(context);
         final Size size = sizeProvider?.call(context) ?? mediaQuery.size;
-        double bottomPadding;
-        if (size == mediaQuery.size) {
-          bottomPadding = mediaQuery.viewInsets.bottom;
+        if (resizeToAvoidBottomInset) {
+          double bottomPadding;
+          if (size == mediaQuery.size) {
+            bottomPadding = mediaQuery.viewInsets.bottom;
+          } else {
+            double statusBarHeight = 0;
+            if (dialogConfiguration?.useSafeArea ?? true) {
+              statusBarHeight = mediaQuery.padding.top;
+            }
+            final double bottom = (mediaQuery.size.height - size.height) / 2;
+            bottomPadding =
+                mediaQuery.viewInsets.bottom - bottom + statusBarHeight / 2;
+            if (bottomPadding < 0) {
+              bottomPadding = 0;
+            }
+          }
+          child = Padding(
+            padding: EdgeInsets.only(bottom: bottomPadding),
+            child: content,
+          );
         } else {
-          double statusBarHeight = 0;
-          if (dialogConfiguration?.useSafeArea ?? true) {
-            statusBarHeight = mediaQuery.padding.top;
-          }
-          final double bottom = (mediaQuery.size.height - size.height) / 2;
-          bottomPadding =
-              mediaQuery.viewInsets.bottom - bottom + statusBarHeight / 2;
-          if (bottomPadding < 0) {
-            bottomPadding = 0;
-          }
+          child = content;
         }
 
         return Center(
           child: SizedBox(
             height: size.height,
             width: size.width,
-            child: Padding(
-              padding: EdgeInsets.only(bottom: bottomPadding),
-              child: content,
-            ),
+            child: child,
           ),
         );
       },
-    );
-  }
-
-  factory FormeSearchable.builder({
-    required String name,
-    required FormeQuery<T> query,
-    required WidgetBuilder contentBuilder,
-    Widget Function(BuildContext context, Widget content)? contentDecorator,
-    bool multiSelect = true,
-    FormeSearchableSelectedItemsBuilder<T>? selectedItemsBuilder,
-    Key? key,
-    List<T>? initialValue,
-    bool registrable = true,
-    bool enabled = true,
-    bool readOnly = false,
-    int? order,
-    bool quietlyValidate = false,
-    Duration? asyncValidatorDebounce,
-    AutovalidateMode? autovalidateMode,
-    FormeValueChanged<List<T>>? onValueChanged,
-    FormeFocusChanged<List<T>>? onFocusChanged,
-    FormeFieldSetter<List<T>>? onSaved,
-    FormeValidator<List<T>>? validator,
-    FormeAsyncValidator<List<T>>? asyncValidator,
-    FormeFieldValidationChanged<List<T>>? onValidationChanged,
-    FormeFieldInitialed<List<T>>? onInitialed,
-    InputDecoration? decoration,
-    int? limit,
-    ValueChanged<BuildContext>? onLimitExceeded,
-    required FormeSearchablePopupType type,
-    FormeFieldDecorator<List<T>>? decorator,
-    FormeDialogConfiguration? dialogConfiguration,
-    FormeBottomSheetConfiguration? bottomSheetConfiguration,
-  }) {
-    return FormeSearchable._(
-      query: query,
-      dialogConfiguration: dialogConfiguration,
-      bottomSheetConfiguration: bottomSheetConfiguration,
-      decorator: decorator,
-      limit: limit,
-      onLimitExceeded: onLimitExceeded,
-      decoration: decoration,
-      enabled: enabled,
-      onInitialed: onInitialed,
-      registrable: registrable,
-      order: order,
-      quietlyValidate: quietlyValidate,
-      asyncValidatorDebounce: asyncValidatorDebounce,
-      autovalidateMode: autovalidateMode,
-      onValueChanged: onValueChanged,
-      onFocusChanged: onFocusChanged,
-      onValidationChanged: onValidationChanged,
-      onSaved: onSaved,
-      validator: validator,
-      asyncValidator: asyncValidator,
-      key: key,
-      readOnly: readOnly,
-      name: name,
-      initialValue: initialValue,
-      selectedItemsBuilder: selectedItemsBuilder,
-      multiSelect: multiSelect,
-      type: type,
-      contentBuilder: contentBuilder,
-      contentDecorator: contentDecorator,
     );
   }
 }
@@ -446,9 +388,7 @@ class _FormeSearchableState<T extends Object> extends FormeFieldState<List<T>>
   @override
   FormeSearchable<T> get widget => super.widget as FormeSearchable<T>;
 
-  OverlayEntry? _overlayEntry;
-  Future? _dialog;
-  bool get _needClose => _overlayEntry != null || _dialog != null;
+  bool get _isOpened => widget.popup.isOpened;
 
   void _query(Map<String, dynamic> condition, int page) {
     perform(widget
@@ -503,7 +443,7 @@ class _FormeSearchableState<T extends Object> extends FormeFieldState<List<T>>
     field = Focus(
       focusNode: focusNode,
       child: GestureDetector(
-        onTap: readOnly ? null : _toggleContent,
+        onTap: readOnly ? null : _togglePopup,
         child: field,
       ),
     );
@@ -557,28 +497,15 @@ class _FormeSearchableState<T extends Object> extends FormeFieldState<List<T>>
   }
 
   void _close() {
-    if (!_needClose) {
+    if (!_isOpened) {
       return;
     }
-    _overlayEntry?.remove();
-    if (_dialog != null) {
-      Navigator.pop(context);
-    }
-    _onClosed();
-  }
-
-  void _onClosed() {
-    _observer = null;
-    _dialog = null;
-    _overlayEntry = null;
+    widget.popup.close(context);
   }
 
   @override
   void dispose() {
-    _overlayEntry?.remove();
-    if (_dialog != null) {
-      Navigator.pop(context);
-    }
+    widget.popup.close(context);
     super.dispose();
   }
 
@@ -597,8 +524,8 @@ class _FormeSearchableState<T extends Object> extends FormeFieldState<List<T>>
     );
   }
 
-  void _toggleContent() {
-    if (_needClose) {
+  void _togglePopup() {
+    if (_isOpened) {
       _close();
       return;
     }
@@ -606,63 +533,17 @@ class _FormeSearchableState<T extends Object> extends FormeFieldState<List<T>>
   }
 
   void _show() {
+    _observer = null;
     focusNode.requestFocus();
-    if (widget.type == FormeSearchablePopupType.bottomSheet) {
-      _dialog = showModalBottomSheet<void>(
-          backgroundColor: widget.bottomSheetConfiguration?.backgroundColor,
-          elevation: widget.bottomSheetConfiguration?.elevation,
-          shape: widget.bottomSheetConfiguration?.shape,
-          clipBehavior: widget.bottomSheetConfiguration?.clipBehavior,
-          constraints: widget.bottomSheetConfiguration?.constraints,
-          barrierColor: widget.bottomSheetConfiguration?.barrierColor,
-          isScrollControlled:
-              widget.bottomSheetConfiguration?.isScrollControlled ?? true,
-          isDismissible: widget.bottomSheetConfiguration?.isDismissible ?? true,
-          transitionAnimationController:
-              widget.bottomSheetConfiguration?.transitionAnimationController,
-          context: context,
-          builder: (context) {
-            return _content;
-          }).whenComplete(_onClosed);
-    }
+    widget.popup.open(context, _layerLink, (context) => _content);
+  }
 
-    if (widget.type == FormeSearchablePopupType.dialog) {
-      _dialog = showDialog<void>(
-        barrierDismissible:
-            widget.dialogConfiguration?.barrierDismissible ?? true,
-        barrierColor:
-            widget.dialogConfiguration?.barrierColor ?? Colors.black54,
-        barrierLabel: widget.dialogConfiguration?.barrierLabel,
-        useSafeArea: widget.dialogConfiguration?.useSafeArea ?? true,
-        context: context,
-        builder: (context) {
-          return _content;
-        },
-      ).whenComplete(_onClosed);
-    }
-
-    if (widget.type == FormeSearchablePopupType.overlay) {
-      _overlayEntry = OverlayEntry(builder: (context) {
-        return CompositedTransformFollower(
-          showWhenUnlinked: false,
-          targetAnchor: Alignment.bottomLeft,
-          link: _layerLink,
-          child: LayoutBuilder(
-            builder: (context, c) {
-              return Align(
-                alignment: Alignment.topLeft,
-                child: ConstrainedBox(
-                  constraints: BoxConstraints(
-                    maxWidth: _layerLink.leaderSize?.width ?? double.infinity,
-                  ),
-                  child: _content,
-                ),
-              );
-            },
-          ),
-        );
-      });
-      Overlay.of(context)!.insert(_overlayEntry!);
+  @override
+  void didUpdateWidget(covariant FormeField<List<T>> oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    final FormeSearchable<T> old = oldWidget as FormeSearchable<T>;
+    if (widget.popup != old.popup) {
+      old.popup.close(context);
     }
   }
 
@@ -672,23 +553,26 @@ class _FormeSearchableState<T extends Object> extends FormeFieldState<List<T>>
         this, super.createFormeFieldController());
   }
 
+  bool get _canNotifyObserver =>
+      _observer != null && widget.popup.isOpened && mounted;
+
   @override
   void onAsyncStateChanged(FormeAsyncOperationState state, Object? key) {
-    if (mounted && state == FormeAsyncOperationState.processing) {
+    if (_canNotifyObserver && state == FormeAsyncOperationState.processing) {
       _observer?.onProcessing();
     }
   }
 
   @override
   void onSuccess(_PageResult<T> result, Object? key) {
-    if (mounted) {
+    if (_canNotifyObserver) {
       _observer?.onSuccess(result, result.currentPage, result.condition);
     }
   }
 
   @override
   void onError(Object error, StackTrace stackTrace) {
-    if (mounted) {
+    if (_canNotifyObserver) {
       _observer?.onError(error, stackTrace);
     }
   }
