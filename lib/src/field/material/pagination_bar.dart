@@ -138,6 +138,8 @@ class _FormeSearchablePaginationBarState
                   _TextInputFormatter(widget.totalPage),
                 ],
                 decoration: InputDecoration(
+                  contentPadding: const EdgeInsets.only(
+                      right: -2), //TODO -2 on all devices?
                   border: InputBorder.none,
                   suffixIcon: const SizedBox.shrink(),
                   suffixIconConstraints: const BoxConstraints.tightFor(),
