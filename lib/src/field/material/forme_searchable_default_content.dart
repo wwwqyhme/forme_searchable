@@ -26,6 +26,7 @@ class FormeSearchableDefaultContent<T extends Object>
   final WidgetBuilder? errorBuilder;
   final Widget Function(BuildContext context, T data, bool isSelected)?
       selectableItemBuilder;
+  final bool performQueryWhenInitialed;
 
   const FormeSearchableDefaultContent({
     Key? key,
@@ -45,6 +46,7 @@ class FormeSearchableDefaultContent<T extends Object>
     this.processingBuilder,
     this.errorBuilder,
     this.selectableItemBuilder,
+    this.performQueryWhenInitialed = false,
   }) : super(key: key);
 
   @override
@@ -61,6 +63,19 @@ class _FormeSearchableDefaultContentState<T extends Object>
   @override
   FormeSearchableDefaultContent<T> get widget =>
       super.widget as FormeSearchableDefaultContent<T>;
+
+  bool _initialed = false;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (!_initialed) {
+      _initialed = true;
+      if (widget.performQueryWhenInitialed) {
+        _query();
+      }
+    }
+  }
 
   Widget _defaultSearchFieldsBuilder(FormeKey key, VoidCallback onSubmitted) {
     return SingleTextSearchField(formKey: key, onSubmitted: onSubmitted);

@@ -49,6 +49,11 @@ class _SingleSearchFieldState extends State<SingleTextSearchField> {
       child: FormeField<String>(
           name: widget.name,
           registrable: true,
+          onInitialed: (field) {
+            WidgetsBinding.instance!.addPostFrameCallback((timeStamp) {
+              field.focusNode?.requestFocus();
+            });
+          },
           builder: (state) {
             return Padding(
                 padding: widget.padding ??
@@ -58,7 +63,7 @@ class _SingleSearchFieldState extends State<SingleTextSearchField> {
                     timer?.cancel();
                     widget.onSubmitted();
                   },
-                  autofocus: true,
+                  // autofocus: true,
                   controller: _controller,
                   focusNode: state.focusNode,
                   decoration: widget.decoration ??

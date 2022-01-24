@@ -668,6 +668,10 @@ class _FormeSearchableState<T extends Object> extends FormeFieldState<List<T>>
       });
     }
 
+    if (!_isUseProxy && (_controller?.isOpened ?? false)) {
+      _controller?.close();
+    }
+
     if (readOnly) {
       if (_isOpenedNotifier.value) {
         WidgetsBinding.instance!.addPostFrameCallback((timeStamp) {
