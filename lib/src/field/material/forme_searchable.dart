@@ -7,15 +7,14 @@ import 'dialog_configuration.dart';
 import 'forme_page_result.dart';
 import 'forme_searchable_default_content.dart';
 import 'forme_searchable_observer.dart';
-import 'forme_searchable_popup_controller.dart';
+import 'forme_searchable_proxy_controller.dart';
 
 typedef FormeSearchableSelectedItemsBuilder<T extends Object> = Widget Function(
     BuildContext context, List<T> selected, ValueChanged<T>? onDelete);
 typedef FormeQuery<T extends Object> = Future<FormeSearchablePageResult<T>>
     Function(Map<String, dynamic> condition, int page);
-typedef FormeSearchablePopupControllerBuilder
-    = FormeSearchablePopupController Function(BuildContext fieldContext,
-        LayerLink link, WidgetBuilder contentBuilder);
+typedef FormeSearchableProxyBuilder = FormeSearchableProxyController Function(
+    BuildContext fieldContext, LayerLink link, WidgetBuilder contentBuilder);
 
 class FormeSearchable<T extends Object> extends FormeField<List<T>> {
   final WidgetBuilder contentBuilder;
@@ -26,9 +25,110 @@ class FormeSearchable<T extends Object> extends FormeField<List<T>> {
   final InputDecoration? decoration;
   final int? limit;
   final ValueChanged<BuildContext>? onLimitExceeded;
-  final FormeSearchablePopupControllerBuilder controllerBuilder;
+  final FormeSearchableProxyBuilder? proxyBuilder;
+
+  factory FormeSearchable({
+    required String name,
+    required FormeQuery<T> query,
+    WidgetBuilder? contentBuilder,
+    double? Function(BuildContext context)? heightProvider,
+    double? Function(BuildContext context)? maxHeightProvider,
+    bool multiSelect = true,
+    FormeSearchableSelectedItemsBuilder<T>? selectedItemsBuilder,
+    Key? key,
+    List<T>? initialValue,
+    bool registrable = true,
+    bool enabled = true,
+    bool readOnly = false,
+    int? order,
+    bool quietlyValidate = false,
+    Duration? asyncValidatorDebounce,
+    AutovalidateMode? autovalidateMode,
+    FormeValueChanged<List<T>>? onValueChanged,
+    FormeFocusChanged<List<T>>? onFocusChanged,
+    FormeFieldSetter<List<T>>? onSaved,
+    FormeValidator<List<T>>? validator,
+    FormeAsyncValidator<List<T>>? asyncValidator,
+    FormeFieldValidationChanged<List<T>>? onValidationChanged,
+    FormeFieldInitialed<List<T>>? onInitialed,
+    InputDecoration? decoration,
+    int? limit,
+    ValueChanged<BuildContext>? onLimitExceeded,
+    FormeFieldDecorator<List<T>>? decorator,
+    Widget Function(BuildContext context, T data, bool isSelected)?
+        selectableItemBuilder,
+    EdgeInsetsGeometry? contentPadding,
+  }) {
+    return FormeSearchable._(
+      query: query,
+      decorator: decorator,
+      limit: limit,
+      onLimitExceeded: onLimitExceeded,
+      decoration: decoration,
+      enabled: enabled,
+      onInitialed: onInitialed,
+      registrable: registrable,
+      order: order,
+      quietlyValidate: quietlyValidate,
+      asyncValidatorDebounce: asyncValidatorDebounce,
+      autovalidateMode: autovalidateMode,
+      onValueChanged: onValueChanged,
+      onFocusChanged: onFocusChanged,
+      onValidationChanged: onValidationChanged,
+      onSaved: onSaved,
+      validator: validator,
+      asyncValidator: asyncValidator,
+      key: key,
+      readOnly: readOnly,
+      name: name,
+      initialValue: initialValue,
+      selectedItemsBuilder: selectedItemsBuilder,
+      multiSelect: multiSelect,
+      contentBuilder: contentBuilder ??
+          (context) {
+            return FormeSearchableDefaultContent<T>(
+              elevation: 4,
+              selectableItemBuilder: selectableItemBuilder,
+              processingBuilder:
+                  (heightProvider == null && maxHeightProvider != null)
+                      ? (context) {
+                          return const Padding(
+                            padding: EdgeInsets.all(20),
+                            child: CircularProgressIndicator(),
+                          );
+                        }
+                      : null,
+            );
+          },
+      contentDecorator: (context, content) {
+        Widget _content;
+        if (heightProvider == null) {
+          if (maxHeightProvider != null) {
+            _content = ConstrainedBox(
+              constraints: BoxConstraints(
+                maxHeight: maxHeightProvider(context) ?? double.infinity,
+              ),
+              child: content,
+            );
+          } else {
+            _content = content;
+          }
+        } else {
+          _content = SizedBox(
+            height: heightProvider(context),
+            child: content,
+          );
+        }
+        return Padding(
+          padding: contentPadding ?? EdgeInsets.zero,
+          child: _content,
+        );
+      },
+    );
+  }
+
   FormeSearchable._({
-    required this.controllerBuilder,
+    this.proxyBuilder,
     Key? key,
     required String name,
     required this.query,
@@ -112,7 +212,7 @@ class FormeSearchable<T extends Object> extends FormeField<List<T>> {
         selectableItemBuilder,
   }) {
     return FormeSearchable._(
-      controllerBuilder: (context, link, contentBuilder) {
+      proxyBuilder: (context, link, contentBuilder) {
         final OverlayEntry _entry = OverlayEntry(builder: (context) {
           return CompositedTransformFollower(
             showWhenUnlinked: false,
@@ -136,86 +236,6 @@ class FormeSearchable<T extends Object> extends FormeField<List<T>> {
         Overlay.of(context)!.insert(_entry);
         return FormeSearchableOverlayPopupController(_entry);
       },
-      query: query,
-      decorator: decorator,
-      limit: limit,
-      onLimitExceeded: onLimitExceeded,
-      decoration: decoration,
-      enabled: enabled,
-      onInitialed: onInitialed,
-      registrable: registrable,
-      order: order,
-      quietlyValidate: quietlyValidate,
-      asyncValidatorDebounce: asyncValidatorDebounce,
-      autovalidateMode: autovalidateMode,
-      onValueChanged: onValueChanged,
-      onFocusChanged: onFocusChanged,
-      onValidationChanged: onValidationChanged,
-      onSaved: onSaved,
-      validator: validator,
-      asyncValidator: asyncValidator,
-      key: key,
-      readOnly: readOnly,
-      name: name,
-      initialValue: initialValue,
-      selectedItemsBuilder: selectedItemsBuilder,
-      multiSelect: multiSelect,
-      contentBuilder: contentBuilder ??
-          (context) {
-            return FormeSearchableDefaultContent<T>(
-              elevation: 4,
-              selectableItemBuilder: selectableItemBuilder,
-              processingBuilder: (context) {
-                return const Padding(
-                  padding: EdgeInsets.all(20),
-                  child: CircularProgressIndicator(),
-                );
-              },
-            );
-          },
-      contentDecorator: (context, content) {
-        if (maxHeightProvider == null) {
-          return content;
-        }
-        return ConstrainedBox(
-          constraints: BoxConstraints(maxHeight: maxHeightProvider(context)),
-          child: content,
-        );
-      },
-    );
-  }
-
-  factory FormeSearchable.append({
-    required String name,
-    required FormeQuery<T> query,
-    WidgetBuilder? contentBuilder,
-    double Function(BuildContext context)? maxHeightProvider,
-    bool multiSelect = true,
-    FormeSearchableSelectedItemsBuilder<T>? selectedItemsBuilder,
-    Key? key,
-    List<T>? initialValue,
-    bool registrable = true,
-    bool enabled = true,
-    bool readOnly = false,
-    int? order,
-    bool quietlyValidate = false,
-    Duration? asyncValidatorDebounce,
-    AutovalidateMode? autovalidateMode,
-    FormeValueChanged<List<T>>? onValueChanged,
-    FormeFocusChanged<List<T>>? onFocusChanged,
-    FormeFieldSetter<List<T>>? onSaved,
-    FormeValidator<List<T>>? validator,
-    FormeAsyncValidator<List<T>>? asyncValidator,
-    FormeFieldValidationChanged<List<T>>? onValidationChanged,
-    FormeFieldInitialed<List<T>>? onInitialed,
-    InputDecoration? decoration,
-    int? limit,
-    ValueChanged<BuildContext>? onLimitExceeded,
-    FormeFieldDecorator<List<T>>? decorator,
-    Widget Function(BuildContext context, T data, bool isSelected)?
-        selectableItemBuilder,
-  }) {
-    return _FormeSearchableAppend(
       query: query,
       decorator: decorator,
       limit: limit,
@@ -301,7 +321,7 @@ class FormeSearchable<T extends Object> extends FormeField<List<T>> {
     bool resizeToAvoidBottomInset = true,
   }) {
     return FormeSearchable._(
-      controllerBuilder: (context, link, contentBuilder) {
+      proxyBuilder: (context, link, contentBuilder) {
         final Completer<void> completer = Completer();
         showModalBottomSheet<void>(
             backgroundColor: bottomSheetConfiguration?.backgroundColor,
@@ -432,7 +452,7 @@ class FormeSearchable<T extends Object> extends FormeField<List<T>> {
     bool resizeToAvoidBottomInset = true,
   }) {
     return FormeSearchable._(
-      controllerBuilder: (context, link, contentBuilder) {
+      proxyBuilder: (context, link, contentBuilder) {
         final Completer<void> completer = Completer<void>();
         showDialog<void>(
           barrierDismissible: dialogConfiguration?.barrierDismissible ?? true,
@@ -521,15 +541,19 @@ class FormeSearchable<T extends Object> extends FormeField<List<T>> {
 class _FormeSearchableState<T extends Object> extends FormeFieldState<List<T>>
     with FormeAsyncOperationHelper<_PageResult<T>> {
   final LayerLink _layerLink = LayerLink();
+  final ValueNotifier<bool> _isOpenedNotifier = ValueNotifier(false);
 
   FormeSearchableObserver<T>? _observer;
 
-  FormeSearchablePopupController? _controller;
+  FormeSearchableProxyController? _controller;
 
   @override
   FormeSearchable<T> get widget => super.widget as FormeSearchable<T>;
 
-  bool get _isOpened => _controller?.isOpened ?? false;
+  bool get _isUseProxy => widget.proxyBuilder != null;
+
+  bool get _isOpened =>
+      _isUseProxy ? _controller?.isOpened ?? false : _isOpenedNotifier.value;
 
   void _query(Map<String, dynamic> condition, int page) {
     perform(widget
@@ -584,7 +608,23 @@ class _FormeSearchableState<T extends Object> extends FormeFieldState<List<T>>
       child: field,
     );
 
-    return field;
+    if (_isUseProxy) {
+      return field;
+    }
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        field,
+        ValueListenableBuilder<bool>(
+            valueListenable: _isOpenedNotifier,
+            builder: (context, isOpened, child) {
+              if (isOpened) {
+                return _buildContent(context);
+              }
+              return const SizedBox.shrink();
+            }),
+      ],
+    );
   }
 
   void _delete(T data) {
@@ -622,7 +662,18 @@ class _FormeSearchableState<T extends Object> extends FormeFieldState<List<T>>
       setValue(items.sublist(0, widget.limit));
     }
 
-    if (readOnly && _isOpened) {
+    if (_isUseProxy && _isOpenedNotifier.value) {
+      WidgetsBinding.instance!.addPostFrameCallback((timeStamp) {
+        _isOpenedNotifier.value = false;
+      });
+    }
+
+    if (readOnly) {
+      if (_isOpenedNotifier.value) {
+        WidgetsBinding.instance!.addPostFrameCallback((timeStamp) {
+          _isOpenedNotifier.value = false;
+        });
+      }
       _controller?.close();
     }
   }
@@ -635,10 +686,12 @@ class _FormeSearchableState<T extends Object> extends FormeFieldState<List<T>>
 
   void _close() {
     _controller?.close();
+    _isOpenedNotifier.value = false;
   }
 
   @override
   void dispose() {
+    _isOpenedNotifier.dispose();
     _controller?.close();
     super.dispose();
   }
@@ -663,13 +716,17 @@ class _FormeSearchableState<T extends Object> extends FormeFieldState<List<T>>
       _close();
       return;
     }
-    _show();
+    _open();
   }
 
-  void _show() {
+  void _open() {
     _observer = null;
     focusNode.requestFocus();
-    _controller = widget.controllerBuilder(context, _layerLink, _buildContent);
+    if (_isUseProxy) {
+      _controller = widget.proxyBuilder!(context, _layerLink, _buildContent);
+    } else {
+      _isOpenedNotifier.value = true;
+    }
   }
 
   @override
@@ -793,120 +850,4 @@ class _PageResult<T extends Object> extends FormeSearchablePageResult<T> {
     this.currentPage,
     this.condition,
   ) : super(result.datas, result.totalPage);
-}
-
-class _FormeSearchableAppend<T extends Object> extends FormeSearchable<T> {
-  _FormeSearchableAppend({
-    required WidgetBuilder contentBuilder,
-    bool multiSelect = true,
-    required FormeQuery<T> query,
-    FormeSearchableSelectedItemsBuilder<T>? selectedItemsBuilder,
-    Widget Function(BuildContext context, Widget content)? contentDecorator,
-    InputDecoration? decoration,
-    int? limit,
-    ValueChanged<BuildContext>? onLimitExceeded,
-    Key? key,
-    required String name,
-    List<T>? initialValue,
-    bool registrable = true,
-    bool enabled = true,
-    bool readOnly = false,
-    int? order,
-    bool quietlyValidate = false,
-    Duration? asyncValidatorDebounce,
-    AutovalidateMode? autovalidateMode,
-    FormeValueChanged<List<T>>? onValueChanged,
-    FormeFocusChanged<List<T>>? onFocusChanged,
-    FormeFieldSetter<List<T>>? onSaved,
-    FormeValidator<List<T>>? validator,
-    FormeAsyncValidator<List<T>>? asyncValidator,
-    FormeFieldValidationChanged<List<T>>? onValidationChanged,
-    FormeFieldInitialed<List<T>>? onInitialed,
-    FormeFieldDecorator<List<T>>? decorator,
-  }) : super._(
-          key: key,
-          multiSelect: multiSelect,
-          query: query,
-          selectedItemsBuilder: selectedItemsBuilder,
-          contentDecorator: contentDecorator,
-          name: name,
-          decoration: decoration,
-          limit: limit,
-          onLimitExceeded: onLimitExceeded,
-          initialValue: initialValue,
-          registrable: registrable,
-          enabled: enabled,
-          readOnly: readOnly,
-          order: order,
-          quietlyValidate: quietlyValidate,
-          asyncValidatorDebounce: asyncValidatorDebounce,
-          autovalidateMode: autovalidateMode,
-          onValueChanged: onValueChanged,
-          onFocusChanged: onFocusChanged,
-          onSaved: onSaved,
-          validator: validator,
-          asyncValidator: asyncValidator,
-          onValidationChanged: onValidationChanged,
-          onInitialed: onInitialed,
-          decorator: decorator,
-          controllerBuilder: (fieldContext, link, contentBuilder) {
-            return _EmptyController();
-          },
-          contentBuilder: contentBuilder,
-        );
-
-  @override
-  FormeFieldState<List<T>> createState() => _FormeSearchableAppendState<T>();
-}
-
-class _FormeSearchableAppendState<T extends Object>
-    extends _FormeSearchableState<T> {
-  final ValueNotifier<bool> _isOpenedNotifier = ValueNotifier(false);
-  @override
-  bool get _isOpened => _isOpenedNotifier.value;
-
-  @override
-  void _close() {
-    _isOpenedNotifier.value = false;
-  }
-
-  @override
-  void _show() {
-    _observer = null;
-    focusNode.requestFocus();
-    _isOpenedNotifier.value = true;
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final Widget field = super.build(context);
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        field,
-        ValueListenableBuilder<bool>(
-            valueListenable: _isOpenedNotifier,
-            builder: (context, isOpened, child) {
-              if (isOpened) {
-                return _buildContent(context);
-              }
-              return const SizedBox.shrink();
-            }),
-      ],
-    );
-  }
-
-  @override
-  void dispose() {
-    _isOpenedNotifier.dispose();
-    super.dispose();
-  }
-}
-
-class _EmptyController extends FormeSearchablePopupController {
-  @override
-  void close() {}
-
-  @override
-  bool get isOpened => throw UnimplementedError();
 }

@@ -2,7 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
-abstract class FormeSearchablePopupController {
+abstract class FormeSearchableProxyController {
   /// close popup
   void close();
 
@@ -11,7 +11,7 @@ abstract class FormeSearchablePopupController {
 }
 
 class FormeSearchableCompleterPopupController
-    extends FormeSearchablePopupController {
+    extends FormeSearchableProxyController {
   final Completer completer;
   final VoidCallback _close;
 
@@ -30,7 +30,7 @@ class FormeSearchableCompleterPopupController
 }
 
 class FormeSearchableOverlayPopupController
-    extends FormeSearchablePopupController {
+    extends FormeSearchableProxyController {
   OverlayEntry? _entry;
 
   FormeSearchableOverlayPopupController(OverlayEntry entry) : _entry = entry;
