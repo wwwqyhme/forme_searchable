@@ -54,6 +54,7 @@ class _SingleSearchFieldState extends State<SingleTextSearchField> {
                 padding: widget.padding ??
                     const EdgeInsets.symmetric(vertical: 5, horizontal: 10),
                 child: TextFormField(
+                  onFieldSubmitted: (String value) => widget.onSubmitted,
                   autofocus: true,
                   controller: _controller,
                   focusNode: state.focusNode,
