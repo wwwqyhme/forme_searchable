@@ -14,8 +14,8 @@ typedef FormeSearchableSelectedItemsBuilder<T extends Object> = Widget Function(
 typedef FormeQuery<T extends Object> = Future<FormeSearchablePageResult<T>>
     Function(Map<String, dynamic> condition, int page);
 typedef FormeSearchablePopupControllerBuilder
-    = FormeSearchablePopupController Function(
-        BuildContext context, LayerLink link, WidgetBuilder contentBuilder);
+    = FormeSearchablePopupController Function(BuildContext fieldContext,
+        LayerLink link, WidgetBuilder contentBuilder);
 
 class FormeSearchable<T extends Object> extends FormeField<List<T>> {
   final WidgetBuilder contentBuilder;
@@ -136,6 +136,86 @@ class FormeSearchable<T extends Object> extends FormeField<List<T>> {
         Overlay.of(context)!.insert(_entry);
         return FormeSearchableOverlayPopupController(_entry);
       },
+      query: query,
+      decorator: decorator,
+      limit: limit,
+      onLimitExceeded: onLimitExceeded,
+      decoration: decoration,
+      enabled: enabled,
+      onInitialed: onInitialed,
+      registrable: registrable,
+      order: order,
+      quietlyValidate: quietlyValidate,
+      asyncValidatorDebounce: asyncValidatorDebounce,
+      autovalidateMode: autovalidateMode,
+      onValueChanged: onValueChanged,
+      onFocusChanged: onFocusChanged,
+      onValidationChanged: onValidationChanged,
+      onSaved: onSaved,
+      validator: validator,
+      asyncValidator: asyncValidator,
+      key: key,
+      readOnly: readOnly,
+      name: name,
+      initialValue: initialValue,
+      selectedItemsBuilder: selectedItemsBuilder,
+      multiSelect: multiSelect,
+      contentBuilder: contentBuilder ??
+          (context) {
+            return FormeSearchableDefaultContent<T>(
+              elevation: 4,
+              selectableItemBuilder: selectableItemBuilder,
+              processingBuilder: (context) {
+                return const Padding(
+                  padding: EdgeInsets.all(20),
+                  child: CircularProgressIndicator(),
+                );
+              },
+            );
+          },
+      contentDecorator: (context, content) {
+        if (maxHeightProvider == null) {
+          return content;
+        }
+        return ConstrainedBox(
+          constraints: BoxConstraints(maxHeight: maxHeightProvider(context)),
+          child: content,
+        );
+      },
+    );
+  }
+
+  factory FormeSearchable.append({
+    required String name,
+    required FormeQuery<T> query,
+    WidgetBuilder? contentBuilder,
+    double Function(BuildContext context)? maxHeightProvider,
+    bool multiSelect = true,
+    FormeSearchableSelectedItemsBuilder<T>? selectedItemsBuilder,
+    Key? key,
+    List<T>? initialValue,
+    bool registrable = true,
+    bool enabled = true,
+    bool readOnly = false,
+    int? order,
+    bool quietlyValidate = false,
+    Duration? asyncValidatorDebounce,
+    AutovalidateMode? autovalidateMode,
+    FormeValueChanged<List<T>>? onValueChanged,
+    FormeFocusChanged<List<T>>? onFocusChanged,
+    FormeFieldSetter<List<T>>? onSaved,
+    FormeValidator<List<T>>? validator,
+    FormeAsyncValidator<List<T>>? asyncValidator,
+    FormeFieldValidationChanged<List<T>>? onValidationChanged,
+    FormeFieldInitialed<List<T>>? onInitialed,
+    InputDecoration? decoration,
+    int? limit,
+    ValueChanged<BuildContext>? onLimitExceeded,
+    FormeFieldDecorator<List<T>>? decorator,
+    Widget Function(BuildContext context, T data, bool isSelected)?
+        selectableItemBuilder,
+  }) {
+    return _FormeSearchableAppend(
       query: query,
       decorator: decorator,
       limit: limit,
@@ -457,16 +537,6 @@ class _FormeSearchableState<T extends Object> extends FormeFieldState<List<T>>
         .then((value) => _PageResult(value, page, condition)));
   }
 
-  @override
-  void afterInitiation() {
-    super.afterInitiation();
-    controller.readOnlyListenable.addListener(() {
-      if (readOnly) {
-        _close();
-      }
-    });
-  }
-
   Widget _buildFieldViewWidget(FormeFieldDecorator<List<T>>? decorator) {
     Widget field = widget.selectedItemsBuilder == null
         ? Wrap(
@@ -509,10 +579,12 @@ class _FormeSearchableState<T extends Object> extends FormeFieldState<List<T>>
       ),
     );
 
-    return CompositedTransformTarget(
+    field = CompositedTransformTarget(
       link: _layerLink,
       child: field,
     );
+
+    return field;
   }
 
   void _delete(T data) {
@@ -549,6 +621,10 @@ class _FormeSearchableState<T extends Object> extends FormeFieldState<List<T>>
       final List<T> items = List.of(value);
       setValue(items.sublist(0, widget.limit));
     }
+
+    if (readOnly && _isOpened) {
+      _controller?.close();
+    }
   }
 
   @override
@@ -558,9 +634,6 @@ class _FormeSearchableState<T extends Object> extends FormeFieldState<List<T>>
   }
 
   void _close() {
-    if (!_isOpened) {
-      return;
-    }
     _controller?.close();
   }
 
@@ -570,7 +643,7 @@ class _FormeSearchableState<T extends Object> extends FormeFieldState<List<T>>
     super.dispose();
   }
 
-  Widget get _content {
+  Widget _buildContent(BuildContext context) {
     final Widget content = widget.contentBuilder(
       context,
     );
@@ -596,8 +669,7 @@ class _FormeSearchableState<T extends Object> extends FormeFieldState<List<T>>
   void _show() {
     _observer = null;
     focusNode.requestFocus();
-    _controller =
-        widget.controllerBuilder(context, _layerLink, (context) => _content);
+    _controller = widget.controllerBuilder(context, _layerLink, _buildContent);
   }
 
   @override
@@ -637,7 +709,6 @@ class FormeSearchableController<T extends Object>
       this._state, FormeFieldController<List<T>> delegate)
       : super(delegate);
 
-  /// close dialog|bottomSheet|overlay
   void close() {
     _state._close();
   }
@@ -651,7 +722,6 @@ class FormeSearchableData<T extends Object> extends InheritedWidget {
   /// get selected value
   List<T> get value => List.of(_state.value);
 
-  /// close current dialog|overlay|bottomSheet
   void close() {
     _state._close();
   }
@@ -723,4 +793,120 @@ class _PageResult<T extends Object> extends FormeSearchablePageResult<T> {
     this.currentPage,
     this.condition,
   ) : super(result.datas, result.totalPage);
+}
+
+class _FormeSearchableAppend<T extends Object> extends FormeSearchable<T> {
+  _FormeSearchableAppend({
+    required WidgetBuilder contentBuilder,
+    bool multiSelect = true,
+    required FormeQuery<T> query,
+    FormeSearchableSelectedItemsBuilder<T>? selectedItemsBuilder,
+    Widget Function(BuildContext context, Widget content)? contentDecorator,
+    InputDecoration? decoration,
+    int? limit,
+    ValueChanged<BuildContext>? onLimitExceeded,
+    Key? key,
+    required String name,
+    List<T>? initialValue,
+    bool registrable = true,
+    bool enabled = true,
+    bool readOnly = false,
+    int? order,
+    bool quietlyValidate = false,
+    Duration? asyncValidatorDebounce,
+    AutovalidateMode? autovalidateMode,
+    FormeValueChanged<List<T>>? onValueChanged,
+    FormeFocusChanged<List<T>>? onFocusChanged,
+    FormeFieldSetter<List<T>>? onSaved,
+    FormeValidator<List<T>>? validator,
+    FormeAsyncValidator<List<T>>? asyncValidator,
+    FormeFieldValidationChanged<List<T>>? onValidationChanged,
+    FormeFieldInitialed<List<T>>? onInitialed,
+    FormeFieldDecorator<List<T>>? decorator,
+  }) : super._(
+          key: key,
+          multiSelect: multiSelect,
+          query: query,
+          selectedItemsBuilder: selectedItemsBuilder,
+          contentDecorator: contentDecorator,
+          name: name,
+          decoration: decoration,
+          limit: limit,
+          onLimitExceeded: onLimitExceeded,
+          initialValue: initialValue,
+          registrable: registrable,
+          enabled: enabled,
+          readOnly: readOnly,
+          order: order,
+          quietlyValidate: quietlyValidate,
+          asyncValidatorDebounce: asyncValidatorDebounce,
+          autovalidateMode: autovalidateMode,
+          onValueChanged: onValueChanged,
+          onFocusChanged: onFocusChanged,
+          onSaved: onSaved,
+          validator: validator,
+          asyncValidator: asyncValidator,
+          onValidationChanged: onValidationChanged,
+          onInitialed: onInitialed,
+          decorator: decorator,
+          controllerBuilder: (fieldContext, link, contentBuilder) {
+            return _EmptyController();
+          },
+          contentBuilder: contentBuilder,
+        );
+
+  @override
+  FormeFieldState<List<T>> createState() => _FormeSearchableAppendState<T>();
+}
+
+class _FormeSearchableAppendState<T extends Object>
+    extends _FormeSearchableState<T> {
+  final ValueNotifier<bool> _isOpenedNotifier = ValueNotifier(false);
+  @override
+  bool get _isOpened => _isOpenedNotifier.value;
+
+  @override
+  void _close() {
+    _isOpenedNotifier.value = false;
+  }
+
+  @override
+  void _show() {
+    _observer = null;
+    focusNode.requestFocus();
+    _isOpenedNotifier.value = true;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final Widget field = super.build(context);
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        field,
+        ValueListenableBuilder<bool>(
+            valueListenable: _isOpenedNotifier,
+            builder: (context, isOpened, child) {
+              if (isOpened) {
+                return _buildContent(context);
+              }
+              return const SizedBox.shrink();
+            }),
+      ],
+    );
+  }
+
+  @override
+  void dispose() {
+    _isOpenedNotifier.dispose();
+    super.dispose();
+  }
+}
+
+class _EmptyController extends FormeSearchablePopupController {
+  @override
+  void close() {}
+
+  @override
+  bool get isOpened => throw UnimplementedError();
 }
