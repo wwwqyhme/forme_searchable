@@ -7,12 +7,15 @@ import 'dialog_configuration.dart';
 import 'forme_page_result.dart';
 import 'forme_searchable_default_content.dart';
 import 'forme_searchable_observer.dart';
-import 'forme_searchable_popup.dart';
+import 'forme_searchable_popup_controller.dart';
 
 typedef FormeSearchableSelectedItemsBuilder<T extends Object> = Widget Function(
     BuildContext context, List<T> selected, ValueChanged<T>? onDelete);
 typedef FormeQuery<T extends Object> = Future<FormeSearchablePageResult<T>>
     Function(Map<String, dynamic> condition, int page);
+typedef FormeSearchablePopupControllerBuilder
+    = FormeSearchablePopupController Function(
+        BuildContext context, LayerLink link, WidgetBuilder contentBuilder);
 
 class FormeSearchable<T extends Object> extends FormeField<List<T>> {
   final WidgetBuilder contentBuilder;
@@ -23,9 +26,9 @@ class FormeSearchable<T extends Object> extends FormeField<List<T>> {
   final InputDecoration? decoration;
   final int? limit;
   final ValueChanged<BuildContext>? onLimitExceeded;
-  final FormeSearchablePopup popup;
+  final FormeSearchablePopupControllerBuilder controllerBuilder;
   FormeSearchable._({
-    required this.popup,
+    required this.controllerBuilder,
     Key? key,
     required String name,
     required this.query,
@@ -109,7 +112,30 @@ class FormeSearchable<T extends Object> extends FormeField<List<T>> {
         selectableItemBuilder,
   }) {
     return FormeSearchable._(
-      popup: FormeSearchableOverlayPopup(),
+      controllerBuilder: (context, link, contentBuilder) {
+        final OverlayEntry _entry = OverlayEntry(builder: (context) {
+          return CompositedTransformFollower(
+            showWhenUnlinked: false,
+            targetAnchor: Alignment.bottomLeft,
+            link: link,
+            child: LayoutBuilder(
+              builder: (context, c) {
+                return Align(
+                  alignment: Alignment.topLeft,
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(
+                      maxWidth: link.leaderSize?.width ?? double.infinity,
+                    ),
+                    child: contentBuilder(context),
+                  ),
+                );
+              },
+            ),
+          );
+        });
+        Overlay.of(context)!.insert(_entry);
+        return FormeSearchableOverlayPopupController(_entry);
+      },
       query: query,
       decorator: decorator,
       limit: limit,
@@ -195,8 +221,27 @@ class FormeSearchable<T extends Object> extends FormeField<List<T>> {
     bool resizeToAvoidBottomInset = true,
   }) {
     return FormeSearchable._(
-      popup: FormeSearchableBottomSheetPopup(
-          configuration: bottomSheetConfiguration),
+      controllerBuilder: (context, link, contentBuilder) {
+        final Completer<void> completer = Completer();
+        showModalBottomSheet<void>(
+            backgroundColor: bottomSheetConfiguration?.backgroundColor,
+            elevation: bottomSheetConfiguration?.elevation,
+            shape: bottomSheetConfiguration?.shape,
+            clipBehavior: bottomSheetConfiguration?.clipBehavior,
+            constraints: bottomSheetConfiguration?.constraints,
+            barrierColor: bottomSheetConfiguration?.barrierColor,
+            isScrollControlled:
+                bottomSheetConfiguration?.isScrollControlled ?? true,
+            isDismissible: bottomSheetConfiguration?.isDismissible ?? true,
+            transitionAnimationController:
+                bottomSheetConfiguration?.transitionAnimationController,
+            context: context,
+            builder: (context) {
+              return contentBuilder(context);
+            }).whenComplete(completer.complete);
+        return FormeSearchableCompleterPopupController(
+            completer, () => Navigator.pop(context));
+      },
       query: query,
       decorator: decorator,
       limit: limit,
@@ -307,7 +352,21 @@ class FormeSearchable<T extends Object> extends FormeField<List<T>> {
     bool resizeToAvoidBottomInset = true,
   }) {
     return FormeSearchable._(
-      popup: FormeSearchableDialogPopup(configuration: dialogConfiguration),
+      controllerBuilder: (context, link, contentBuilder) {
+        final Completer<void> completer = Completer<void>();
+        showDialog<void>(
+          barrierDismissible: dialogConfiguration?.barrierDismissible ?? true,
+          barrierColor: dialogConfiguration?.barrierColor ?? Colors.black54,
+          barrierLabel: dialogConfiguration?.barrierLabel,
+          useSafeArea: dialogConfiguration?.useSafeArea ?? true,
+          context: context,
+          builder: (context) {
+            return contentBuilder(context);
+          },
+        ).whenComplete(completer.complete);
+        return FormeSearchableCompleterPopupController(
+            completer, () => Navigator.pop(context));
+      },
       query: query,
       decorator: decorator,
       limit: limit,
@@ -385,10 +444,12 @@ class _FormeSearchableState<T extends Object> extends FormeFieldState<List<T>>
 
   FormeSearchableObserver<T>? _observer;
 
+  FormeSearchablePopupController? _controller;
+
   @override
   FormeSearchable<T> get widget => super.widget as FormeSearchable<T>;
 
-  bool get _isOpened => widget.popup.isOpened;
+  bool get _isOpened => _controller?.isOpened ?? false;
 
   void _query(Map<String, dynamic> condition, int page) {
     perform(widget
@@ -500,12 +561,12 @@ class _FormeSearchableState<T extends Object> extends FormeFieldState<List<T>>
     if (!_isOpened) {
       return;
     }
-    widget.popup.close(context);
+    _controller?.close();
   }
 
   @override
   void dispose() {
-    widget.popup.close(context);
+    _controller?.close();
     super.dispose();
   }
 
@@ -535,16 +596,8 @@ class _FormeSearchableState<T extends Object> extends FormeFieldState<List<T>>
   void _show() {
     _observer = null;
     focusNode.requestFocus();
-    widget.popup.open(context, _layerLink, (context) => _content);
-  }
-
-  @override
-  void didUpdateWidget(covariant FormeField<List<T>> oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    final FormeSearchable<T> old = oldWidget as FormeSearchable<T>;
-    if (widget.popup != old.popup) {
-      old.popup.close(context);
-    }
+    _controller =
+        widget.controllerBuilder(context, _layerLink, (context) => _content);
   }
 
   @override
@@ -553,8 +606,7 @@ class _FormeSearchableState<T extends Object> extends FormeFieldState<List<T>>
         this, super.createFormeFieldController());
   }
 
-  bool get _canNotifyObserver =>
-      _observer != null && widget.popup.isOpened && mounted;
+  bool get _canNotifyObserver => _observer != null && _isOpened && mounted;
 
   @override
   void onAsyncStateChanged(FormeAsyncOperationState state, Object? key) {
