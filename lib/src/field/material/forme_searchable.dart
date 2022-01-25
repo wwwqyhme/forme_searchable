@@ -17,12 +17,27 @@ typedef FormeSearchableProxyBuilder = FormeSearchableProxyController Function(
     BuildContext fieldContext, LayerLink link, WidgetBuilder contentBuilder);
 
 class FormeSearchable<T extends Object> extends FormeField<List<T>> {
+  /// used to build search fields & pagination & search result content widget
+  ///
+  /// default is [FormeSearchableDefaultContent]
+  ///
+  /// if you want to build your own content, extends [FormeSearchableObserverHelper] to simply it
   final WidgetBuilder contentBuilder;
+
+  /// whether support multi select
   final bool multiSelect;
+
+  /// pagination query
   final FormeQuery<T> query;
+
+  /// used to build selected items widget
+  ///
+  /// the selected items widget container is created via [FormeFieldDecorator]
   final FormeSearchableSelectedItemsBuilder<T>? selectedItemsBuilder;
+
   final Widget Function(BuildContext context, Widget content)? contentDecorator;
   final InputDecoration? decoration;
+
   final int? limit;
   final ValueChanged<BuildContext>? onLimitExceeded;
   final FormeSearchableProxyBuilder? proxyBuilder;

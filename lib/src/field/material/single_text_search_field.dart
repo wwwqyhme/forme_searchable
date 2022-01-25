@@ -62,6 +62,7 @@ class _SingleSearchFieldState extends State<SingleTextSearchField> {
                   onFieldSubmitted: (String value) {
                     timer?.cancel();
                     widget.onSubmitted();
+                    state.focusNode.requestFocus();
                   },
                   // autofocus: true,
                   controller: _controller,
