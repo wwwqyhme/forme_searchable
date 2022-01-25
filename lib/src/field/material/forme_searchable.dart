@@ -322,7 +322,8 @@ class FormeSearchable<T extends Object> extends FormeField<List<T>> {
   }) {
     return FormeSearchable._(
       proxyBuilder: (context, link, contentBuilder) {
-        final Completer<void> completer = Completer();
+        final bool useRootNavigator =
+            bottomSheetConfiguration?.useRootNavigator ?? false;
         showModalBottomSheet<void>(
             backgroundColor: bottomSheetConfiguration?.backgroundColor,
             elevation: bottomSheetConfiguration?.elevation,
@@ -336,11 +337,22 @@ class FormeSearchable<T extends Object> extends FormeField<List<T>> {
             transitionAnimationController:
                 bottomSheetConfiguration?.transitionAnimationController,
             context: context,
+            useRootNavigator: useRootNavigator,
             builder: (context) {
               return contentBuilder(context);
-            }).whenComplete(completer.complete);
-        return FormeSearchableCompleterPopupController(
-            completer, () => Navigator.pop(context));
+            });
+
+        final NavigatorState navigator =
+            Navigator.of(context, rootNavigator: useRootNavigator);
+        Route? last;
+        navigator.popUntil((route) {
+          last = route;
+          return true;
+        });
+        return FormeSearchableRouteProxyController(
+          last!,
+          navigator,
+        );
       },
       query: query,
       decorator: decorator,
@@ -453,19 +465,30 @@ class FormeSearchable<T extends Object> extends FormeField<List<T>> {
   }) {
     return FormeSearchable._(
       proxyBuilder: (context, link, contentBuilder) {
-        final Completer<void> completer = Completer<void>();
+        final bool useRootNavigator =
+            dialogConfiguration?.useRootNavigator ?? true;
         showDialog<void>(
-          barrierDismissible: dialogConfiguration?.barrierDismissible ?? true,
+          barrierDismissible: dialogConfiguration?.barrierDismissible ?? false,
           barrierColor: dialogConfiguration?.barrierColor ?? Colors.black54,
           barrierLabel: dialogConfiguration?.barrierLabel,
           useSafeArea: dialogConfiguration?.useSafeArea ?? true,
+          useRootNavigator: useRootNavigator,
           context: context,
           builder: (context) {
             return contentBuilder(context);
           },
-        ).whenComplete(completer.complete);
-        return FormeSearchableCompleterPopupController(
-            completer, () => Navigator.pop(context));
+        );
+        final NavigatorState navigator =
+            Navigator.of(context, rootNavigator: useRootNavigator);
+        Route? last;
+        navigator.popUntil((route) {
+          last = route;
+          return true;
+        });
+        return FormeSearchableRouteProxyController(
+          last!,
+          navigator,
+        );
       },
       query: query,
       decorator: decorator,

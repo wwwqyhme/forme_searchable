@@ -11,6 +11,7 @@ class FormeBottomSheetConfiguration {
   final bool isScrollControlled;
   final bool isDismissible;
   final AnimationController? transitionAnimationController;
+  final bool useRootNavigator;
 
   FormeBottomSheetConfiguration({
     this.backgroundColor,
@@ -22,6 +23,7 @@ class FormeBottomSheetConfiguration {
     this.transitionAnimationController,
     this.isDismissible = true,
     this.isScrollControlled = false,
+    this.useRootNavigator = false,
   });
 }
 
@@ -30,11 +32,13 @@ class FormeDialogConfiguration {
   final Color? barrierColor;
   final String? barrierLabel;
   final bool useSafeArea;
+  final bool useRootNavigator;
 
   FormeDialogConfiguration({
-    this.barrierDismissible = true,
+    this.barrierDismissible = false,
     this.barrierColor,
     this.barrierLabel,
     this.useSafeArea = true,
+    this.useRootNavigator = true,
   });
 }

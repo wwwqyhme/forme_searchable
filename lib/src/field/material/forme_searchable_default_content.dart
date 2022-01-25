@@ -27,6 +27,7 @@ class FormeSearchableDefaultContent<T extends Object>
   final Widget Function(BuildContext context, T data, bool isSelected)?
       selectableItemBuilder;
   final bool performQueryWhenInitialed;
+  final Widget? closeIcon;
 
   const FormeSearchableDefaultContent({
     Key? key,
@@ -47,6 +48,7 @@ class FormeSearchableDefaultContent<T extends Object>
     this.errorBuilder,
     this.selectableItemBuilder,
     this.performQueryWhenInitialed = false,
+    this.closeIcon,
   }) : super(key: key);
 
   @override
@@ -110,7 +112,8 @@ class _FormeSearchableDefaultContentState<T extends Object>
       children.add(const Spacer());
     }
     children.add(
-      IconButton(onPressed: close, icon: const Icon(Icons.close)),
+      IconButton(
+          onPressed: close, icon: widget.closeIcon ?? const Icon(Icons.close)),
     );
     return Row(
       children: children,

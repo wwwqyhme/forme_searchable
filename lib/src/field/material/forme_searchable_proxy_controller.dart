@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 
 abstract class FormeSearchableProxyController {
@@ -10,23 +8,32 @@ abstract class FormeSearchableProxyController {
   bool get isOpened;
 }
 
-class FormeSearchableCompleterPopupController
+class FormeSearchableRouteProxyController
     extends FormeSearchableProxyController {
-  final Completer completer;
-  final VoidCallback _close;
+  final Route route;
+  final NavigatorState navigator;
 
-  FormeSearchableCompleterPopupController(this.completer, this._close);
+  FormeSearchableRouteProxyController(
+    this.route,
+    this.navigator,
+  );
 
   @override
   void close() {
-    if (completer.isCompleted) {
+    if (!isOpened) {
       return;
     }
-    _close();
+    navigator.popUntil((route) {
+      if (route == this.route) {
+        navigator.pop();
+        return true;
+      }
+      return false;
+    });
   }
 
   @override
-  bool get isOpened => !completer.isCompleted;
+  bool get isOpened => route.isActive;
 }
 
 class FormeSearchableOverlayPopupController
