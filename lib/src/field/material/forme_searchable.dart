@@ -26,6 +26,7 @@ class FormeSearchable<T extends Object> extends FormeField<List<T>> {
   final int? limit;
   final ValueChanged<BuildContext>? onLimitExceeded;
   final FormeSearchableProxyBuilder? proxyBuilder;
+  final bool open;
 
   factory FormeSearchable({
     required String name,
@@ -58,8 +59,10 @@ class FormeSearchable<T extends Object> extends FormeField<List<T>> {
     Widget Function(BuildContext context, T data, bool isSelected)?
         selectableItemBuilder,
     EdgeInsetsGeometry? contentPadding,
+    bool open = false,
   }) {
     return FormeSearchable._(
+      open: open,
       query: query,
       decorator: decorator,
       limit: limit,
@@ -155,6 +158,7 @@ class FormeSearchable<T extends Object> extends FormeField<List<T>> {
     this.decoration,
     this.limit,
     this.onLimitExceeded,
+    this.open = false,
   }) : super(
             key: key,
             registrable: registrable,
@@ -210,8 +214,10 @@ class FormeSearchable<T extends Object> extends FormeField<List<T>> {
     FormeFieldDecorator<List<T>>? decorator,
     Widget Function(BuildContext context, T data, bool isSelected)?
         selectableItemBuilder,
+    bool open = false,
   }) {
     return FormeSearchable._(
+      open: open,
       proxyBuilder: (context, link, contentBuilder) {
         final OverlayEntry _entry = OverlayEntry(builder: (context) {
           return CompositedTransformFollower(
@@ -317,8 +323,10 @@ class FormeSearchable<T extends Object> extends FormeField<List<T>> {
     Widget Function(BuildContext context, T data, bool isSelected)?
         selectableItemBuilder,
     bool resizeToAvoidBottomInset = true,
+    bool open = false,
   }) {
     return FormeSearchable._(
+      open: open,
       proxyBuilder: (context, link, contentBuilder) {
         final bool useRootNavigator =
             bottomSheetConfiguration?.useRootNavigator ?? false;
@@ -453,8 +461,10 @@ class FormeSearchable<T extends Object> extends FormeField<List<T>> {
     Widget Function(BuildContext context, T data, bool isSelected)?
         selectableItemBuilder,
     bool resizeToAvoidBottomInset = true,
+    bool open = false,
   }) {
     return FormeSearchable._(
+      open: open,
       proxyBuilder: (context, link, contentBuilder) {
         final bool useRootNavigator =
             dialogConfiguration?.useRootNavigator ?? true;
@@ -560,6 +570,18 @@ class _FormeSearchableState<T extends Object> extends FormeFieldState<List<T>>
   FormeSearchableObserver<T>? _observer;
 
   FormeSearchableProxyController? _controller;
+
+  @override
+  void afterInitiation() {
+    super.afterInitiation();
+    if (widget.open) {
+      WidgetsBinding.instance!.addPostFrameCallback((timeStamp) {
+        if (!_isOpened) {
+          _open();
+        }
+      });
+    }
+  }
 
   @override
   FormeSearchable<T> get widget => super.widget as FormeSearchable<T>;

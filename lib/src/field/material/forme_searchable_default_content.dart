@@ -39,6 +39,9 @@ class FormeSearchableDefaultContent<T extends Object>
   final Alignment sizeAnimationAlignment;
   final FormeSearchPaginationBuilder? paginationBuilder;
 
+  /// whether show close button
+  final bool closeable;
+
   const FormeSearchableDefaultContent({
     Key? key,
     this.paginationConfiguration = const FormePaginationConfiguration(),
@@ -63,6 +66,7 @@ class FormeSearchableDefaultContent<T extends Object>
     this.sizeAnimationAlignment = Alignment.topCenter,
     this.sizeAnimationDuration = const Duration(milliseconds: 200),
     this.paginationBuilder,
+    this.closeable = true,
   }) : super(key: key);
 
   @override
@@ -137,10 +141,13 @@ class _FormeSearchableDefaultContentState<T extends Object>
     if (children.isEmpty) {
       children.add(const Spacer());
     }
-    children.add(
-      IconButton(
-          onPressed: close, icon: widget.closeIcon ?? const Icon(Icons.close)),
-    );
+    if (widget.closeable) {
+      children.add(
+        IconButton(
+            onPressed: close,
+            icon: widget.closeIcon ?? const Icon(Icons.close)),
+      );
+    }
     return Row(
       children: children,
     );
