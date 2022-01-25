@@ -88,7 +88,11 @@ class _FormeSearchableDefaultContentState<T extends Object>
     if (!_initialed) {
       _initialed = true;
       if (widget.performQueryWhenInitialed) {
-        _query();
+        /// query when frame completed
+        /// we need formekey to get query condition
+        WidgetsBinding.instance!.addPostFrameCallback((timeStamp) {
+          _query();
+        });
       }
     }
   }
