@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:forme/forme.dart';
 import '../../../forme_searchable.dart';
@@ -6,6 +7,11 @@ import 'single_text_search_field.dart';
 
 typedef FormeSearchFieldsBuilder = Widget Function(
     FormeKey formKey, VoidCallback onSubmitted);
+typedef FormeSearchPaginationBuilder = Widget Function(
+  BuildContext context,
+  ValueListenable<PageInfo> listenable,
+  ValueChanged<int> onPageChanged,
+);
 
 class FormeSearchableDefaultContent<T extends Object>
     extends FormeSearchableObserverHelper<T> {
@@ -31,6 +37,7 @@ class FormeSearchableDefaultContent<T extends Object>
   final Curve sizeAnimationCurve;
   final Duration sizeAnimationDuration;
   final Alignment sizeAnimationAlignment;
+  final FormeSearchPaginationBuilder? paginationBuilder;
 
   const FormeSearchableDefaultContent({
     Key? key,
@@ -55,6 +62,7 @@ class FormeSearchableDefaultContent<T extends Object>
     this.sizeAnimationCurve = Curves.linear,
     this.sizeAnimationAlignment = Alignment.topCenter,
     this.sizeAnimationDuration = const Duration(milliseconds: 200),
+    this.paginationBuilder,
   }) : super(key: key);
 
   @override
@@ -65,8 +73,8 @@ class FormeSearchableDefaultContent<T extends Object>
 class _FormeSearchableDefaultContentState<T extends Object>
     extends FormeSearchableObserverHelperState<T> {
   final FormeKey _formKey = FormeKey();
-  final FormeSearchablePaginationController _controller =
-      FormeSearchablePaginationController(1);
+  final _FormeSearchablePaginationNotifier _paginationNotifier =
+      _FormeSearchablePaginationNotifier(PageInfo._(1, 1));
 
   @override
   FormeSearchableDefaultContent<T> get widget =>
@@ -83,6 +91,12 @@ class _FormeSearchableDefaultContentState<T extends Object>
         _query();
       }
     }
+  }
+
+  @override
+  void dispose() {
+    _paginationNotifier.dispose();
+    super.dispose();
   }
 
   Widget _defaultSearchFieldsBuilder(FormeKey key, VoidCallback onSubmitted) {
@@ -104,12 +118,14 @@ class _FormeSearchableDefaultContentState<T extends Object>
       if (paginationEnable) {
         children.add(
           Expanded(
-            child: FormeSearchablePaginationBar(
-              totalPage: result!.totalPage,
-              controller: _controller,
-              onPageChanged: _query,
-              configuration: widget.paginationConfiguration,
-            ),
+            child: widget.paginationBuilder == null
+                ? FormeSearchablePaginationBar(
+                    notifier: _paginationNotifier,
+                    onPageChanged: _query,
+                    configuration: widget.paginationConfiguration,
+                  )
+                : widget.paginationBuilder!(
+                    context, _paginationNotifier, _query),
           ),
         );
       }
@@ -227,7 +243,20 @@ class _FormeSearchableDefaultContentState<T extends Object>
   void onSuccessIfMounted(FormeSearchablePageResult<T> result, int currentPage,
       Map<String, dynamic> condition) {
     setState(() {
-      _controller.value = currentPage;
+      _paginationNotifier.value = PageInfo._(currentPage, result.totalPage);
     });
   }
+}
+
+class _FormeSearchablePaginationNotifier extends ValueNotifier<PageInfo> {
+  _FormeSearchablePaginationNotifier(PageInfo value) : super(value);
+}
+
+class PageInfo {
+  final int currentPage;
+  final int totalPage;
+
+  bool get hasNextPage => currentPage < totalPage;
+  bool get hasPrevPage => currentPage > 1;
+  PageInfo._(this.currentPage, this.totalPage);
 }
