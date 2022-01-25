@@ -9,7 +9,6 @@ typedef FormeSearchFieldsBuilder = Widget Function(
 
 class FormeSearchableDefaultContent<T extends Object>
     extends FormeSearchableObserverHelper<T> {
-  final Alignment alignment;
   final FormePaginationConfiguration paginationConfiguration;
   final FormeSearchFieldsBuilder? searchFieldsBuilder;
   final MaterialType type;
@@ -28,10 +27,13 @@ class FormeSearchableDefaultContent<T extends Object>
       selectableItemBuilder;
   final bool performQueryWhenInitialed;
   final Widget? closeIcon;
+  final bool sizeAnimationEnable;
+  final Curve sizeAnimationCurve;
+  final Duration sizeAnimationDuration;
+  final Alignment sizeAnimationAlignment;
 
   const FormeSearchableDefaultContent({
     Key? key,
-    this.alignment = Alignment.topCenter,
     this.paginationConfiguration = const FormePaginationConfiguration(),
     this.searchFieldsBuilder,
     this.shape,
@@ -49,6 +51,10 @@ class FormeSearchableDefaultContent<T extends Object>
     this.selectableItemBuilder,
     this.performQueryWhenInitialed = false,
     this.closeIcon,
+    this.sizeAnimationEnable = true,
+    this.sizeAnimationCurve = Curves.linear,
+    this.sizeAnimationAlignment = Alignment.topCenter,
+    this.sizeAnimationDuration = const Duration(milliseconds: 200),
   }) : super(key: key);
 
   @override
@@ -191,7 +197,14 @@ class _FormeSearchableDefaultContentState<T extends Object>
       clipBehavior: widget.clipBehavior,
       animationDuration: widget.animationDuration,
       elevation: widget.elevation,
-      child: column,
+      child: widget.sizeAnimationEnable
+          ? AnimatedSize(
+              curve: widget.sizeAnimationCurve,
+              alignment: widget.sizeAnimationAlignment,
+              duration: widget.sizeAnimationDuration,
+              child: column,
+            )
+          : column,
     );
   }
 

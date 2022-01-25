@@ -316,8 +316,6 @@ class FormeSearchable<T extends Object> extends FormeField<List<T>> {
     FormeFieldDecorator<List<T>>? decorator,
     Widget Function(BuildContext context, T data, bool isSelected)?
         selectableItemBuilder,
-    Curve? curve = Curves.linear,
-    Duration animationDuration = const Duration(milliseconds: 200),
     bool resizeToAvoidBottomInset = true,
   }) {
     return FormeSearchable._(
@@ -419,14 +417,7 @@ class FormeSearchable<T extends Object> extends FormeField<List<T>> {
             child: _content,
           );
         }
-        if (curve == null) {
-          return _content;
-        }
-        return AnimatedSize(
-          curve: curve,
-          duration: animationDuration,
-          child: _content,
-        );
+        return _content;
       },
     );
   }
@@ -636,6 +627,7 @@ class _FormeSearchableState<T extends Object> extends FormeFieldState<List<T>>
     }
     return Column(
       mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         field,
         ValueListenableBuilder<bool>(

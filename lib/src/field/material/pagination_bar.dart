@@ -47,6 +47,13 @@ class _FormeSearchablePaginationBarState
     _focusNode.addListener(() {
       if (!_focusNode.hasFocus) {
         _controller.text = '$_currentPage';
+      } else {
+        final newText = _controller.text.toLowerCase();
+        _controller.value = _controller.value.copyWith(
+          text: newText,
+          selection: TextSelection(baseOffset: 0, extentOffset: newText.length),
+          composing: TextRange.empty,
+        );
       }
     });
     widget.controller.addListener(() {
