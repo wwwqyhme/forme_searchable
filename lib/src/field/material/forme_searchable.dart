@@ -15,6 +15,8 @@ typedef FormeQuery<T extends Object> = Future<FormeSearchablePageResult<T>>
     Function(Map<String, dynamic> condition, int page);
 typedef FormeSearchableProxyBuilder = FormeSearchableProxyController Function(
     BuildContext fieldContext, LayerLink link, WidgetBuilder contentBuilder);
+typedef FormeSearchableOnLimitExceeded<T extends Object> = List<T> Function(
+    BuildContext ocntext, List<T> value, T data);
 
 class FormeSearchable<T extends Object> extends FormeField<List<T>> {
   /// used to build search fields & pagination & search result content widget
@@ -39,9 +41,19 @@ class FormeSearchable<T extends Object> extends FormeField<List<T>> {
   final InputDecoration? decoration;
 
   final int? limit;
-  final ValueChanged<BuildContext>? onLimitExceeded;
   final FormeSearchableProxyBuilder? proxyBuilder;
+
+  /// whether open search content when initialed
   final bool open;
+
+  /// callback when limit exceeded
+  ///
+  /// currentValue is current selected value
+  ///
+  /// data is is the exceeded data
+  ///
+  /// return value will be set to new selected value
+  final FormeSearchableOnLimitExceeded<T>? onLimitExceeded;
 
   factory FormeSearchable({
     required String name,
@@ -69,7 +81,7 @@ class FormeSearchable<T extends Object> extends FormeField<List<T>> {
     FormeFieldInitialed<List<T>>? onInitialed,
     InputDecoration? decoration,
     int? limit,
-    ValueChanged<BuildContext>? onLimitExceeded,
+    FormeSearchableOnLimitExceeded<T>? onLimitExceeded,
     FormeFieldDecorator<List<T>>? decorator,
     Widget Function(BuildContext context, T data, bool isSelected)?
         selectableItemBuilder,
@@ -174,6 +186,7 @@ class FormeSearchable<T extends Object> extends FormeField<List<T>> {
     this.limit,
     this.onLimitExceeded,
     this.open = false,
+    bool requestFocusOnUserInteraction = false,
   }) : super(
             key: key,
             registrable: registrable,
@@ -192,6 +205,7 @@ class FormeSearchable<T extends Object> extends FormeField<List<T>> {
             validator: validator,
             asyncValidator: asyncValidator,
             readOnly: readOnly,
+            requestFocusOnUserInteraction: requestFocusOnUserInteraction,
             builder: (genericState) {
               final _FormeSearchableState<T> state =
                   genericState as _FormeSearchableState<T>;
@@ -225,7 +239,7 @@ class FormeSearchable<T extends Object> extends FormeField<List<T>> {
     FormeFieldInitialed<List<T>>? onInitialed,
     InputDecoration? decoration,
     int? limit,
-    ValueChanged<BuildContext>? onLimitExceeded,
+    FormeSearchableOnLimitExceeded<T>? onLimitExceeded,
     FormeFieldDecorator<List<T>>? decorator,
     Widget Function(BuildContext context, T data, bool isSelected)?
         selectableItemBuilder,
@@ -333,7 +347,7 @@ class FormeSearchable<T extends Object> extends FormeField<List<T>> {
     FormeFieldInitialed<List<T>>? onInitialed,
     InputDecoration? decoration,
     int? limit,
-    ValueChanged<BuildContext>? onLimitExceeded,
+    FormeSearchableOnLimitExceeded<T>? onLimitExceeded,
     FormeFieldDecorator<List<T>>? decorator,
     Widget Function(BuildContext context, T data, bool isSelected)?
         selectableItemBuilder,
@@ -471,7 +485,7 @@ class FormeSearchable<T extends Object> extends FormeField<List<T>> {
     FormeFieldInitialed<List<T>>? onInitialed,
     InputDecoration? decoration,
     int? limit,
-    ValueChanged<BuildContext>? onLimitExceeded,
+    FormeSearchableOnLimitExceeded<T>? onLimitExceeded,
     FormeFieldDecorator<List<T>>? decorator,
     Widget Function(BuildContext context, T data, bool isSelected)?
         selectableItemBuilder,
@@ -692,7 +706,22 @@ class _FormeSearchableState<T extends Object> extends FormeFieldState<List<T>>
       final List<T> copy = List.of(value);
       if (!copy.remove(data)) {
         if (widget.limit != null && copy.length >= widget.limit!) {
-          widget.onLimitExceeded?.call(context);
+          final List<T>? newValue =
+              widget.onLimitExceeded?.call(context, copy, data);
+          if (newValue == null || newValue == copy) {
+            return;
+          }
+          if (newValue.length > widget.limit!) {
+            throw Exception(
+                'you returned a new value from onLimitExceeded , but length of new value should be smaller than limit');
+          }
+          for (final T newData in newValue) {
+            if (!copy.contains(newData) && data != newData) {
+              throw Exception(
+                  'you returned a new value from onLimitExceeded ,but some data is not in selected value or not equals with exceeded data');
+            }
+          }
+          didChange(newValue);
           return;
         }
         copy.add(data);
