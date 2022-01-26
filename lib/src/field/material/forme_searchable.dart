@@ -728,7 +728,11 @@ class _FormeSearchableState<T extends Object> extends FormeFieldState<List<T>>
       }
       didChange(copy);
     } else {
-      didChange([data]);
+      if (value.contains(data)) {
+        didChange([]);
+      } else {
+        didChange([data]);
+      }
     }
   }
 
@@ -851,8 +855,8 @@ class FormeSearchableController<T extends Object>
       this._state, FormeFieldController<List<T>> delegate)
       : super(delegate);
 
-  void close() {
-    _state._close();
+  void toggle() {
+    _state._togglePopup();
   }
 }
 
