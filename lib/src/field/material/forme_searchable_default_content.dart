@@ -1,12 +1,19 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
+import 'package:flutter/services.dart';
 import 'package:forme/forme.dart';
 import '../../../forme_searchable.dart';
 
 import 'single_text_search_field.dart';
 
+/// build search fields
+///
+/// [query] used to perform  a query , query condition comes from from [formKey]
+///
+/// [selectHighlight] used to select current highlighted item
 typedef FormeSearchFieldsBuilder = Widget Function(
-    FormeKey formKey, VoidCallback onSubmitted);
+    FormeKey formKey, VoidCallback query, VoidCallback selectHighlight);
 typedef FormeSearchPaginationBuilder = Widget Function(
   BuildContext context,
   ValueListenable<PageInfo> listenable,
@@ -16,6 +23,7 @@ typedef FormeSearchPaginationBuilder = Widget Function(
 class FormeSearchableDefaultContent<T extends Object>
     extends FormeSearchableObserverHelper<T> {
   final FormePaginationConfiguration paginationConfiguration;
+
   final FormeSearchFieldsBuilder? searchFieldsBuilder;
   final MaterialType type;
   final double elevation;
@@ -29,7 +37,8 @@ class FormeSearchableDefaultContent<T extends Object>
   final Duration animationDuration;
   final WidgetBuilder? processingBuilder;
   final WidgetBuilder? errorBuilder;
-  final Widget Function(BuildContext context, T data, bool isSelected)?
+  final Widget Function(
+          BuildContext context, int index, T data, bool isSelected)?
       selectableItemBuilder;
   final bool performQueryWhenInitialed;
   final Widget? closeIcon;
@@ -79,12 +88,38 @@ class _FormeSearchableDefaultContentState<T extends Object>
   final FormeKey _formKey = FormeKey();
   final _FormeSearchablePaginationNotifier _paginationNotifier =
       _FormeSearchablePaginationNotifier(PageInfo._(1, 1));
+  final ValueNotifier<int> _indexNotifier = ValueNotifier(0);
+  late final Map<Type, Action<Intent>> _actionMap;
+  late final CallbackAction<AutocompletePreviousOptionIntent>
+      _previousOptionAction;
+  late final CallbackAction<AutocompleteNextOptionIntent> _nextOptionAction;
+
+  static const Map<ShortcutActivator, Intent> _shortcuts =
+      <ShortcutActivator, Intent>{
+    SingleActivator(LogicalKeyboardKey.arrowUp):
+        AutocompletePreviousOptionIntent(),
+    SingleActivator(LogicalKeyboardKey.arrowDown):
+        AutocompleteNextOptionIntent(),
+  };
 
   @override
   FormeSearchableDefaultContent<T> get widget =>
       super.widget as FormeSearchableDefaultContent<T>;
 
   bool _initialed = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _previousOptionAction = CallbackAction<AutocompletePreviousOptionIntent>(
+        onInvoke: _highlightPreviousOption);
+    _nextOptionAction = CallbackAction<AutocompleteNextOptionIntent>(
+        onInvoke: _highlightNextOption);
+    _actionMap = <Type, Action<Intent>>{
+      AutocompletePreviousOptionIntent: _previousOptionAction,
+      AutocompleteNextOptionIntent: _nextOptionAction,
+    };
+  }
 
   @override
   void didChangeDependencies() {
@@ -103,12 +138,32 @@ class _FormeSearchableDefaultContentState<T extends Object>
 
   @override
   void dispose() {
+    _indexNotifier.dispose();
     _paginationNotifier.dispose();
     super.dispose();
   }
 
-  Widget _defaultSearchFieldsBuilder(FormeKey key, VoidCallback onSubmitted) {
-    return SingleTextSearchField(formKey: key, onSubmitted: onSubmitted);
+  void _updateHighlight(int newIndex) {
+    final List<T>? options = result?.datas;
+    _indexNotifier.value =
+        (options == null || options.isEmpty) ? 0 : newIndex % options.length;
+  }
+
+  void _highlightPreviousOption(AutocompletePreviousOptionIntent intent) {
+    _updateHighlight(_indexNotifier.value - 1);
+  }
+
+  void _highlightNextOption(AutocompleteNextOptionIntent intent) {
+    _updateHighlight(_indexNotifier.value + 1);
+  }
+
+  Widget _defaultSearchFieldsBuilder(
+      FormeKey key, VoidCallback query, VoidCallback selectHighlighted) {
+    return SingleTextSearchField(
+      formKey: key,
+      query: query,
+      selectHighlight: selectHighlighted,
+    );
   }
 
   void _query([int page = 1]) {
@@ -154,10 +209,14 @@ class _FormeSearchableDefaultContentState<T extends Object>
   }
 
   Widget _defaultSelectableItemBuilder(
-      BuildContext context, T data, bool isSelected) {
-    return ListTile(
-      leading: isSelected ? const Icon(Icons.check_circle) : null,
-      title: Text('$data'),
+      BuildContext context, int index, T data, bool isSelected) {
+    final bool isHighlight = AutocompleteHighlightedOption.of(context) == index;
+    return Container(
+      color: isHighlight ? Theme.of(context).focusColor : null,
+      child: ListTile(
+        leading: isSelected ? const Icon(Icons.check_circle) : null,
+        title: Text('$data'),
+      ),
     );
   }
 
@@ -177,40 +236,60 @@ class _FormeSearchableDefaultContentState<T extends Object>
     );
   }
 
+  void _selectHighlight() {
+    if (result == null || result!.datas.isEmpty) {
+      return;
+    }
+    toggle(result!.datas[_indexNotifier.value]);
+  }
+
   @override
   Widget build(BuildContext context) {
     final Column column = Column(
       mainAxisSize: MainAxisSize.min,
       children: [
         _header(),
-        (widget.searchFieldsBuilder ?? _defaultSearchFieldsBuilder)
-            .call(_formKey, _query),
+        Shortcuts(
+          shortcuts: _shortcuts,
+          child: Actions(
+            actions: _actionMap,
+            child: (widget.searchFieldsBuilder ?? _defaultSearchFieldsBuilder)
+                .call(_formKey, _query, _selectHighlight),
+          ),
+        ),
+        // AutocompleteHighlightedOption(highlightIndexNotifier: highlightIndexNotifier, child: child)
         if (state == null) const SizedBox.shrink(),
         if (state == FormeAsyncOperationState.processing)
           (widget.processingBuilder ?? _defaultProcessingBuilder)(context),
         if (state == FormeAsyncOperationState.error)
           (widget.errorBuilder ?? _defaultErrorBuilder)(context),
         if (state == FormeAsyncOperationState.success)
-          Flexible(
-              child: ListView.builder(
-            itemBuilder: (context, index) {
-              final T data = result!.datas[index];
-              return InkWell(
-                onTap: () {
-                  toggle(data);
-                },
-                child: Builder(
-                  builder: (context) {
-                    return (widget.selectableItemBuilder ??
-                            _defaultSelectableItemBuilder)(
-                        context, data, isSelected(data));
+          AutocompleteHighlightedOption(
+            highlightIndexNotifier: _indexNotifier,
+            child: Flexible(
+                child: ListView.builder(
+              itemBuilder: (context, index) {
+                final T data = result!.datas[index];
+                return InkWell(
+                  onTap: () {
+                    toggle(data);
                   },
-                ),
-              );
-            },
-            itemCount: result!.datas.length,
-            shrinkWrap: true,
-          )),
+                  child: Builder(
+                    builder: (context) {
+                      final bool highlight =
+                          AutocompleteHighlightedOption.of(context) == index;
+                      if (highlight) {}
+                      return (widget.selectableItemBuilder ??
+                              _defaultSelectableItemBuilder)(
+                          context, index, data, isSelected(data));
+                    },
+                  ),
+                );
+              },
+              itemCount: result!.datas.length,
+              shrinkWrap: true,
+            )),
+          ),
       ],
     );
     return Material(
@@ -253,6 +332,7 @@ class _FormeSearchableDefaultContentState<T extends Object>
   @override
   void onSuccessIfMounted(FormeSearchablePageResult<T> result, int currentPage,
       Map<String, dynamic> condition) {
+    _indexNotifier.value = 0;
     setState(() {
       _paginationNotifier.value = PageInfo._(currentPage, result.totalPage);
     });

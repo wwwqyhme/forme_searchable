@@ -83,7 +83,7 @@ class FormeSearchable<T extends Object> extends FormeField<List<T>> {
     int? limit,
     FormeSearchableOnLimitExceeded<T>? onLimitExceeded,
     FormeFieldDecorator<List<T>>? decorator,
-    Widget Function(BuildContext context, T data, bool isSelected)?
+    Widget Function(BuildContext context, int index, T data, bool isSelected)?
         selectableItemBuilder,
     EdgeInsetsGeometry? contentPadding,
     bool open = false,
@@ -241,7 +241,7 @@ class FormeSearchable<T extends Object> extends FormeField<List<T>> {
     int? limit,
     FormeSearchableOnLimitExceeded<T>? onLimitExceeded,
     FormeFieldDecorator<List<T>>? decorator,
-    Widget Function(BuildContext context, T data, bool isSelected)?
+    Widget Function(BuildContext context, int index, T data, bool isSelected)?
         selectableItemBuilder,
     bool open = false,
   }) {
@@ -349,7 +349,7 @@ class FormeSearchable<T extends Object> extends FormeField<List<T>> {
     int? limit,
     FormeSearchableOnLimitExceeded<T>? onLimitExceeded,
     FormeFieldDecorator<List<T>>? decorator,
-    Widget Function(BuildContext context, T data, bool isSelected)?
+    Widget Function(BuildContext context, int index, T data, bool isSelected)?
         selectableItemBuilder,
     bool resizeToAvoidBottomInset = true,
     bool open = false,
@@ -487,7 +487,7 @@ class FormeSearchable<T extends Object> extends FormeField<List<T>> {
     int? limit,
     FormeSearchableOnLimitExceeded<T>? onLimitExceeded,
     FormeFieldDecorator<List<T>>? decorator,
-    Widget Function(BuildContext context, T data, bool isSelected)?
+    Widget Function(BuildContext context, int index, T data, bool isSelected)?
         selectableItemBuilder,
     bool resizeToAvoidBottomInset = true,
     bool open = false,
@@ -858,6 +858,8 @@ class FormeSearchableController<T extends Object>
   void toggle() {
     _state._togglePopup();
   }
+
+  bool get isOpened => _state._isOpened;
 }
 
 class FormeSearchableData<T extends Object> extends InheritedWidget {

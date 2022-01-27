@@ -8,7 +8,8 @@ class SingleTextSearchField extends StatefulWidget {
   final InputDecoration? decoration;
   final FormeKey formKey;
   final String name;
-  final VoidCallback onSubmitted;
+  final VoidCallback query;
+  final VoidCallback selectHighlight;
   final EdgeInsetsGeometry? padding;
 
   const SingleTextSearchField({
@@ -17,7 +18,8 @@ class SingleTextSearchField extends StatefulWidget {
     this.decoration,
     required this.formKey,
     this.name = 'query',
-    required this.onSubmitted,
+    required this.query,
+    required this.selectHighlight,
     this.padding,
   }) : super(key: key);
 
@@ -43,7 +45,7 @@ class _SingleSearchFieldState extends State<SingleTextSearchField> {
       onValueChanged: (f, dynamic v) {
         timer?.cancel();
         timer = Timer(widget.debounce, () {
-          widget.onSubmitted();
+          widget.query();
         });
       },
       child: FormeField<String>(
@@ -60,8 +62,7 @@ class _SingleSearchFieldState extends State<SingleTextSearchField> {
                     const EdgeInsets.symmetric(vertical: 5, horizontal: 10),
                 child: TextFormField(
                   onFieldSubmitted: (String value) {
-                    timer?.cancel();
-                    widget.onSubmitted();
+                    widget.selectHighlight();
                     state.focusNode.requestFocus();
                   },
                   // autofocus: true,
