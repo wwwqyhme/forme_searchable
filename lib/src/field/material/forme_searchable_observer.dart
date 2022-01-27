@@ -104,7 +104,7 @@ abstract class FormeSearchableObserverHelperState<T extends Object>
   void close() => _searchable.close();
 
   @protected
-  void toggle(T data) => _searchable.toggle(data);
+  bool toggle(T data) => _searchable.toggle(data);
 
   @protected
   void query(Map<String, dynamic> condition, int page) =>

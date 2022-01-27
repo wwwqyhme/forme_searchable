@@ -650,6 +650,8 @@ class _FormeSearchableState<T extends Object> extends FormeFieldState<List<T>>
 
     final FormeFieldDecorator<List<T>> finalDecorator = decorator ??
         FormeInputDecoratorBuilder(
+            maxLength: widget.limit,
+            counter: (value) => value.length,
             decoration: widget.decoration ??
                 const InputDecoration(
                   suffixIcon: Icon(Icons.search),
@@ -701,7 +703,7 @@ class _FormeSearchableState<T extends Object> extends FormeFieldState<List<T>>
     }
   }
 
-  void _toggle(T data) {
+  bool _toggle(T data) {
     if (widget.multiSelect) {
       final List<T> copy = List.of(value);
       if (!copy.remove(data)) {
@@ -709,7 +711,7 @@ class _FormeSearchableState<T extends Object> extends FormeFieldState<List<T>>
           final List<T>? newValue =
               widget.onLimitExceeded?.call(context, copy, data);
           if (newValue == null || newValue == copy) {
-            return;
+            return false;
           }
           if (newValue.length > widget.limit!) {
             throw Exception(
@@ -722,7 +724,6 @@ class _FormeSearchableState<T extends Object> extends FormeFieldState<List<T>>
             }
           }
           didChange(newValue);
-          return;
         }
         copy.add(data);
       }
@@ -734,6 +735,7 @@ class _FormeSearchableState<T extends Object> extends FormeFieldState<List<T>>
         didChange([data]);
       }
     }
+    return true;
   }
 
   @override
@@ -878,7 +880,7 @@ class FormeSearchableData<T extends Object> extends InheritedWidget {
   bool contains(T data) => _state.value.contains(data);
 
   /// select|unselect data
-  void toggle(T data) => _state._toggle(data);
+  bool toggle(T data) => _state._toggle(data);
 
   /// perform a query
   void query(Map<String, dynamic> condition, int page) =>

@@ -277,11 +277,12 @@ class _FormeSearchableDefaultContentState<T extends Object>
   }
 
   @override
-  void toggle(T data) {
-    super.toggle(data);
-    if (result != null && widget.enableHighlight) {
+  bool toggle(T data) {
+    final bool toggled = super.toggle(data);
+    if (toggled && result != null && widget.enableHighlight) {
       _indexNotifier.value = result!.datas.indexOf(data);
     }
+    return toggled;
   }
 
   @override
