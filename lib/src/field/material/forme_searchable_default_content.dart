@@ -1,6 +1,5 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
 import 'package:forme/forme.dart';
 import '../../../forme_searchable.dart';
@@ -50,9 +49,11 @@ class FormeSearchableDefaultContent<T extends Object>
 
   /// whether show close button
   final bool closeable;
+  final PaginationBarPosition paginationBarPosition;
 
   const FormeSearchableDefaultContent({
     Key? key,
+    this.paginationBarPosition = PaginationBarPosition.top,
     this.paginationConfiguration = const FormePaginationConfiguration(),
     this.searchFieldsBuilder,
     this.shape,
@@ -93,6 +94,7 @@ class _FormeSearchableDefaultContentState<T extends Object>
   late final CallbackAction<AutocompletePreviousOptionIntent>
       _previousOptionAction;
   late final CallbackAction<AutocompleteNextOptionIntent> _nextOptionAction;
+  final ScrollController controller = ScrollController();
 
   static const Map<ShortcutActivator, Intent> _shortcuts =
       <ShortcutActivator, Intent>{
@@ -107,6 +109,10 @@ class _FormeSearchableDefaultContentState<T extends Object>
       super.widget as FormeSearchableDefaultContent<T>;
 
   bool _initialed = false;
+  bool get _paginationEnable =>
+      result != null &&
+      result!.totalPage > 1 &&
+      widget.paginationConfiguration.enable;
 
   @override
   void initState() {
@@ -138,6 +144,7 @@ class _FormeSearchableDefaultContentState<T extends Object>
 
   @override
   void dispose() {
+    controller.dispose();
     _indexNotifier.dispose();
     _paginationNotifier.dispose();
     super.dispose();
@@ -172,26 +179,26 @@ class _FormeSearchableDefaultContentState<T extends Object>
     super.query(condition, page);
   }
 
+  Widget _paginationBar() {
+    return widget.paginationBuilder == null
+        ? FormeSearchablePaginationBar(
+            notifier: _paginationNotifier,
+            onPageChanged: _query,
+            configuration: widget.paginationConfiguration,
+          )
+        : widget.paginationBuilder!(context, _paginationNotifier, _query);
+  }
+
   /// build default pagination bar and close button
   Widget _header() {
     final List<Widget> children = [];
-    if (result != null) {
-      final bool paginationEnable =
-          result!.totalPage > 1 && widget.paginationConfiguration.enable;
-      if (paginationEnable) {
-        children.add(
-          Expanded(
-            child: widget.paginationBuilder == null
-                ? FormeSearchablePaginationBar(
-                    notifier: _paginationNotifier,
-                    onPageChanged: _query,
-                    configuration: widget.paginationConfiguration,
-                  )
-                : widget.paginationBuilder!(
-                    context, _paginationNotifier, _query),
-          ),
-        );
-      }
+    if (_paginationEnable &&
+        widget.paginationBarPosition == PaginationBarPosition.top) {
+      children.add(
+        Expanded(
+          child: _paginationBar(),
+        ),
+      );
     }
     if (children.isEmpty) {
       children.add(const Spacer());
@@ -244,6 +251,14 @@ class _FormeSearchableDefaultContentState<T extends Object>
   }
 
   @override
+  void toggle(T data) {
+    super.toggle(data);
+    if (result != null) {
+      _indexNotifier.value = result!.datas.indexOf(data);
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     final Column column = Column(
       mainAxisSize: MainAxisSize.min,
@@ -257,7 +272,6 @@ class _FormeSearchableDefaultContentState<T extends Object>
                 .call(_formKey, _query, _selectHighlight),
           ),
         ),
-        // AutocompleteHighlightedOption(highlightIndexNotifier: highlightIndexNotifier, child: child)
         if (state == null) const SizedBox.shrink(),
         if (state == FormeAsyncOperationState.processing)
           (widget.processingBuilder ?? _defaultProcessingBuilder)(context),
@@ -268,6 +282,7 @@ class _FormeSearchableDefaultContentState<T extends Object>
             highlightIndexNotifier: _indexNotifier,
             child: Flexible(
                 child: ListView.builder(
+              controller: controller,
               itemBuilder: (context, index) {
                 final T data = result!.datas[index];
                 return InkWell(
@@ -278,7 +293,16 @@ class _FormeSearchableDefaultContentState<T extends Object>
                     builder: (context) {
                       final bool highlight =
                           AutocompleteHighlightedOption.of(context) == index;
-                      if (highlight) {}
+                      if (highlight) {
+                        WidgetsBinding.instance!
+                            .addPostFrameCallback((timeStamp) {
+                          controller.position.ensureVisible(
+                            context.findRenderObject()!,
+                            alignment: 0.5,
+                            duration: const Duration(milliseconds: 200),
+                          );
+                        });
+                      }
                       return (widget.selectableItemBuilder ??
                               _defaultSelectableItemBuilder)(
                           context, index, data, isSelected(data));
@@ -290,6 +314,9 @@ class _FormeSearchableDefaultContentState<T extends Object>
               shrinkWrap: true,
             )),
           ),
+        if (_paginationEnable &&
+            widget.paginationBarPosition == PaginationBarPosition.bottom)
+          _paginationBar(),
       ],
     );
     return Material(
@@ -350,4 +377,9 @@ class PageInfo {
   bool get hasNextPage => currentPage < totalPage;
   bool get hasPrevPage => currentPage > 1;
   PageInfo._(this.currentPage, this.totalPage);
+}
+
+enum PaginationBarPosition {
+  top,
+  bottom,
 }
