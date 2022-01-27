@@ -63,7 +63,10 @@ class _SingleSearchFieldState extends State<SingleTextSearchField> {
                 child: TextFormField(
                   onFieldSubmitted: (String value) {
                     widget.selectHighlight();
-                    state.focusNode.requestFocus();
+
+                    WidgetsBinding.instance!.addPostFrameCallback((timeStamp) {
+                      state.focusNode.requestFocus();
+                    });
                   },
                   // autofocus: true,
                   controller: _controller,
