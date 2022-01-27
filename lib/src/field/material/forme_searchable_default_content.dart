@@ -50,6 +50,11 @@ class FormeSearchableDefaultContent<T extends Object>
   /// whether show close button
   final bool closeable;
   final PaginationBarPosition paginationBarPosition;
+  final double scrollAlignment;
+  final Duration scrollDuration;
+
+  /// whether enable highlight
+  final bool enableHighlight;
 
   const FormeSearchableDefaultContent({
     Key? key,
@@ -77,6 +82,9 @@ class FormeSearchableDefaultContent<T extends Object>
     this.sizeAnimationDuration = const Duration(milliseconds: 200),
     this.paginationBuilder,
     this.closeable = true,
+    this.scrollAlignment = 0.5,
+    this.scrollDuration = const Duration(milliseconds: 200),
+    this.enableHighlight = true,
   }) : super(key: key);
 
   @override
@@ -89,12 +97,12 @@ class _FormeSearchableDefaultContentState<T extends Object>
   final FormeKey _formKey = FormeKey();
   final _FormeSearchablePaginationNotifier _paginationNotifier =
       _FormeSearchablePaginationNotifier(PageInfo._(1, 1));
-  final ValueNotifier<int> _indexNotifier = ValueNotifier(0);
+  late final ValueNotifier<int> _indexNotifier;
   late final Map<Type, Action<Intent>> _actionMap;
   late final CallbackAction<AutocompletePreviousOptionIntent>
       _previousOptionAction;
   late final CallbackAction<AutocompleteNextOptionIntent> _nextOptionAction;
-  final ScrollController controller = ScrollController();
+  final ScrollController _scrollController = ScrollController();
 
   static const Map<ShortcutActivator, Intent> _shortcuts =
       <ShortcutActivator, Intent>{
@@ -117,6 +125,7 @@ class _FormeSearchableDefaultContentState<T extends Object>
   @override
   void initState() {
     super.initState();
+    _indexNotifier = ValueNotifier(widget.enableHighlight ? 0 : -1);
     _previousOptionAction = CallbackAction<AutocompletePreviousOptionIntent>(
         onInvoke: _highlightPreviousOption);
     _nextOptionAction = CallbackAction<AutocompleteNextOptionIntent>(
@@ -143,24 +152,40 @@ class _FormeSearchableDefaultContentState<T extends Object>
   }
 
   @override
+  void didUpdateWidget(covariant FormeSearchableObserverHelper<T> oldWidget) {
+    super.didUpdateWidget(oldWidget);
+
+    if (!widget.enableHighlight) {
+      _indexNotifier.value = -1;
+    } else if (_indexNotifier.value == -1) {
+      _indexNotifier.value = 0;
+    }
+  }
+
+  @override
   void dispose() {
-    controller.dispose();
+    _scrollController.dispose();
     _indexNotifier.dispose();
     _paginationNotifier.dispose();
     super.dispose();
   }
 
   void _updateHighlight(int newIndex) {
-    final List<T>? options = result?.datas;
-    _indexNotifier.value =
-        (options == null || options.isEmpty) ? 0 : newIndex % options.length;
+    _indexNotifier.value = newIndex;
   }
 
   void _highlightPreviousOption(AutocompletePreviousOptionIntent intent) {
+    if (_indexNotifier.value == 0) {
+      return;
+    }
     _updateHighlight(_indexNotifier.value - 1);
   }
 
   void _highlightNextOption(AutocompleteNextOptionIntent intent) {
+    final int? dataLength = result?.datas.length;
+    if (dataLength == null || _indexNotifier.value == dataLength - 1) {
+      return;
+    }
     _updateHighlight(_indexNotifier.value + 1);
   }
 
@@ -217,7 +242,8 @@ class _FormeSearchableDefaultContentState<T extends Object>
 
   Widget _defaultSelectableItemBuilder(
       BuildContext context, int index, T data, bool isSelected) {
-    final bool isHighlight = AutocompleteHighlightedOption.of(context) == index;
+    final bool isHighlight = widget.enableHighlight &&
+        AutocompleteHighlightedOption.of(context) == index;
     return Container(
       color: isHighlight ? Theme.of(context).focusColor : null,
       child: ListTile(
@@ -253,23 +279,25 @@ class _FormeSearchableDefaultContentState<T extends Object>
   @override
   void toggle(T data) {
     super.toggle(data);
-    if (result != null) {
+    if (result != null && widget.enableHighlight) {
       _indexNotifier.value = result!.datas.indexOf(data);
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final Widget searchFields =
+        (widget.searchFieldsBuilder ?? _defaultSearchFieldsBuilder)
+            .call(_formKey, _query, _selectHighlight);
     final Column column = Column(
       mainAxisSize: MainAxisSize.min,
       children: [
         _header(),
         Shortcuts(
-          shortcuts: _shortcuts,
+          shortcuts: widget.enableHighlight ? _shortcuts : {},
           child: Actions(
-            actions: _actionMap,
-            child: (widget.searchFieldsBuilder ?? _defaultSearchFieldsBuilder)
-                .call(_formKey, _query, _selectHighlight),
+            actions: widget.enableHighlight ? _actionMap : {},
+            child: searchFields,
           ),
         ),
         if (state == null) const SizedBox.shrink(),
@@ -282,7 +310,7 @@ class _FormeSearchableDefaultContentState<T extends Object>
             highlightIndexNotifier: _indexNotifier,
             child: Flexible(
                 child: ListView.builder(
-              controller: controller,
+              controller: _scrollController,
               itemBuilder: (context, index) {
                 final T data = result!.datas[index];
                 return InkWell(
@@ -296,10 +324,10 @@ class _FormeSearchableDefaultContentState<T extends Object>
                       if (highlight) {
                         WidgetsBinding.instance!
                             .addPostFrameCallback((timeStamp) {
-                          controller.position.ensureVisible(
+                          _scrollController.position.ensureVisible(
                             context.findRenderObject()!,
-                            alignment: 0.5,
-                            duration: const Duration(milliseconds: 200),
+                            alignment: widget.scrollAlignment,
+                            duration: widget.scrollDuration,
                           );
                         });
                       }
@@ -359,7 +387,7 @@ class _FormeSearchableDefaultContentState<T extends Object>
   @override
   void onSuccessIfMounted(FormeSearchablePageResult<T> result, int currentPage,
       Map<String, dynamic> condition) {
-    _indexNotifier.value = 0;
+    _indexNotifier.value = widget.enableHighlight ? 0 : -1;
     setState(() {
       _paginationNotifier.value = PageInfo._(currentPage, result.totalPage);
     });
