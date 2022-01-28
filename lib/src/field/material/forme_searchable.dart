@@ -930,8 +930,8 @@ class _MediaQueryHolderState extends State<_MediaQueryHolder>
 
   @override
   void dispose() {
-    super.dispose();
     WidgetsBinding.instance!.removeObserver(this);
+    super.dispose();
   }
 }
 
