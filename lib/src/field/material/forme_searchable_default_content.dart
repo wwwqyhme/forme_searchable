@@ -99,17 +99,16 @@ class _FormeSearchableDefaultContentState<T extends Object>
       _FormeSearchablePaginationNotifier(PageInfo._(1, 1));
   late final ValueNotifier<int> _indexNotifier;
   late final Map<Type, Action<Intent>> _actionMap;
-  late final CallbackAction<AutocompletePreviousOptionIntent>
-      _previousOptionAction;
-  late final CallbackAction<AutocompleteNextOptionIntent> _nextOptionAction;
   final ScrollController _scrollController = ScrollController();
 
   static const Map<ShortcutActivator, Intent> _shortcuts =
       <ShortcutActivator, Intent>{
+    // SingleActivator(LogicalKeyboardKey.escape):
     SingleActivator(LogicalKeyboardKey.arrowUp):
         AutocompletePreviousOptionIntent(),
     SingleActivator(LogicalKeyboardKey.arrowDown):
         AutocompleteNextOptionIntent(),
+    SingleActivator(LogicalKeyboardKey.escape): _EscapeOptionIntent(),
   };
 
   @override
@@ -126,13 +125,18 @@ class _FormeSearchableDefaultContentState<T extends Object>
   void initState() {
     super.initState();
     _indexNotifier = ValueNotifier(widget.enableHighlight ? 0 : -1);
-    _previousOptionAction = CallbackAction<AutocompletePreviousOptionIntent>(
-        onInvoke: _highlightPreviousOption);
-    _nextOptionAction = CallbackAction<AutocompleteNextOptionIntent>(
-        onInvoke: _highlightNextOption);
     _actionMap = <Type, Action<Intent>>{
-      AutocompletePreviousOptionIntent: _previousOptionAction,
-      AutocompleteNextOptionIntent: _nextOptionAction,
+      AutocompletePreviousOptionIntent:
+          CallbackAction<AutocompletePreviousOptionIntent>(
+              onInvoke: _highlightPreviousOption),
+      AutocompleteNextOptionIntent:
+          CallbackAction<AutocompleteNextOptionIntent>(
+              onInvoke: _highlightNextOption),
+      _EscapeOptionIntent: CallbackAction<_EscapeOptionIntent>(
+        onInvoke: (intent) {
+          close();
+        },
+      ),
     };
   }
 
@@ -411,4 +415,8 @@ class PageInfo {
 enum PaginationBarPosition {
   top,
   bottom,
+}
+
+class _EscapeOptionIntent extends Intent {
+  const _EscapeOptionIntent();
 }
